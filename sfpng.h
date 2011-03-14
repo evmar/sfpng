@@ -6,6 +6,8 @@ typedef enum {
   SFPNG_SUCCESS = 0,
   SFPNG_ERROR_BAD_SIGNATURE,
   SFPNG_ERROR_BAD_CRC,
+  SFPNG_ERROR_ALLOC_FAILED,
+  SFPNG_ERROR_BAD_ATTRIBUTE,
 } sfpng_status;
 
 sfpng_decoder* sfpng_decoder_new();

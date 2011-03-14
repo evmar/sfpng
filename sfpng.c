@@ -80,14 +80,33 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
                           decoder->chunk_type[1],
                           decoder->chunk_type[2],
                           decoder->chunk_type[3]);
+  stream src = { decoder->chunk_buf, decoder->chunk_len };
 
   if (decoder->chunk_len == 13 &&
       type == PNG_TAG('I', 'H', 'D', 'R')) {
-    stream src = { decoder->chunk_buf, decoder->chunk_len };
+    /* 11.2.2 IHDR Image header */
     decoder->width = stream_read_uint32(&src);
     decoder->height = stream_read_uint32(&src);
-    printf("%dx%d\n", decoder->width, decoder->height);
-    /* XXX read other fields. */
+    if (decoder->width == 0 ||
+        decoder->height == 0) {
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    }
+
+    int bit_depth = stream_read_byte(&src);
+    int color_type = stream_read_byte(&src);
+    /* XXX validate depth/color info. */
+
+    /* Compression/filter are currently unused. */
+    int compression = stream_read_byte(&src);
+    if (compression != 0)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    int filter = stream_read_byte(&src);
+    if (filter != 0)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+
+    int interlace = stream_read_byte(&src);
+    if (interlace != 0 && interlace != 1)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
   } else if (decoder->chunk_len == 9 &&
              type == PNG_TAG('p', 'H', 'Y', 's')) {
     /* 11.3.5.3 pHYs Physical pixel dimensions */
@@ -143,6 +162,8 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
              decoder->chunk_type[3]);
 
       decoder->chunk_buf = realloc(decoder->chunk_buf, decoder->chunk_len);
+      if (!decoder->chunk_buf)
+        return SFPNG_ERROR_ALLOC_FAILED;
 
       decoder->state = STATE_CHUNK_DATA;
       decoder->chunk_ofs = 0;
