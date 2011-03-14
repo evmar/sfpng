@@ -56,6 +56,16 @@ static uint8_t stream_read_byte(stream* stream) {
   return i;
 }
 
+static void fill_buffer(char* buf, int* have_len, int want_len,
+                        stream* src) {
+  int want_bytes = want_len - *have_len;
+  int take_bytes = min(src->len, want_bytes);
+
+  memcpy(buf + *have_len, src->buf, take_bytes);
+  *have_len += take_bytes;
+  stream_consume(src, take_bytes);
+}
+
 #define PNG_TAG(a,b,c,d) ((uint32_t)((a<<24)|(b<<16)|(c<<8)|d))
 
 static const char png_signature[8] = {
@@ -124,12 +134,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
     switch (decoder->state) {
     case STATE_SIGNATURE: {
       /* Want 8 bytes of signature in buffer. */
-      int needed_bytes = 8 - decoder->in_len;
-      int have_bytes = min(needed_bytes, src.len);
-      memcpy(decoder->in_buf + decoder->in_len, src.buf, have_bytes);
-      decoder->in_len += have_bytes;
-      stream_consume(&src, have_bytes);
-
+      fill_buffer(decoder->in_buf, &decoder->in_len, 8, &src);
       if (decoder->in_len < 8)
         return SFPNG_SUCCESS;
 
@@ -142,12 +147,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
     }
     case STATE_CHUNK_HEADER: {
       /* Want 8 bytes of chunk header. */
-      int needed_bytes = 8 - decoder->in_len;
-      int have_bytes = min(needed_bytes, src.len);
-      memcpy(decoder->in_buf + decoder->in_len, src.buf, have_bytes);
-      decoder->in_len += have_bytes;
-      stream_consume(&src, have_bytes);
-
+      fill_buffer(decoder->in_buf, &decoder->in_len, 8, &src);
       if (decoder->in_len < 8)
         return SFPNG_SUCCESS;
 
@@ -161,21 +161,19 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
              decoder->chunk_type[2],
              decoder->chunk_type[3]);
 
-      decoder->chunk_buf = realloc(decoder->chunk_buf, decoder->chunk_len);
-      if (!decoder->chunk_buf)
-        return SFPNG_ERROR_ALLOC_FAILED;
+      if (decoder->chunk_len) {
+        decoder->chunk_buf = realloc(decoder->chunk_buf, decoder->chunk_len);
+        if (!decoder->chunk_buf)
+          return SFPNG_ERROR_ALLOC_FAILED;
+      }
 
       decoder->state = STATE_CHUNK_DATA;
       decoder->chunk_ofs = 0;
       /* Fall through. */
     }
     case STATE_CHUNK_DATA: {
-      int wanted_bytes = decoder->chunk_len - decoder->chunk_ofs;
-      int have_bytes = min(wanted_bytes, src.len);
-      memcpy(decoder->chunk_buf + decoder->chunk_ofs, src.buf, have_bytes);
-      decoder->chunk_ofs += have_bytes;
-      stream_consume(&src, have_bytes);
-
+      fill_buffer(decoder->chunk_buf, &decoder->chunk_ofs, decoder->chunk_len,
+                  &src);
       if (decoder->chunk_ofs < decoder->chunk_len)
         return SFPNG_SUCCESS;
 
@@ -184,12 +182,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       /* Fall through. */
     }
     case STATE_CHUNK_CRC: {
-      int wanted_bytes = 4 - decoder->in_len;
-      int have_bytes = min(wanted_bytes, src.len);
-      memcpy(decoder->in_buf + decoder->in_len, src.buf, have_bytes);
-      decoder->in_len += have_bytes;
-      stream_consume(&src, have_bytes);
-
+      fill_buffer(decoder->in_buf, &decoder->in_len, 4, &src);
       if (decoder->in_len < 4)
         return SFPNG_SUCCESS;
 

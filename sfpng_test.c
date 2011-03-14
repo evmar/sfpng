@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
   while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
     sfpng_status status = sfpng_decoder_write(decoder, buf, len);
     if (status != SFPNG_SUCCESS) {
-      printf("decode error\n");
+      printf("decode error %d\n", status);
       return 1;
     }
   }
