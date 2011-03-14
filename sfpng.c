@@ -102,6 +102,7 @@ sfpng_decoder* sfpng_decoder_new() {
 }
 
 static sfpng_status parse_color(sfpng_decoder* decoder,
+                                int bit_depth,
                                 int color_type) {
   switch (color_type) {
   case 0: {
