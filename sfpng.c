@@ -166,6 +166,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
         decoder->height == 0) {
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     }
+    printf("%dx%d\n", decoder->width, decoder->height);
 
     int bit_depth = stream_read_byte(&src);
     int color_type = stream_read_byte(&src);
@@ -211,6 +212,28 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
       return SFPNG_ERROR_ZLIB_ERROR;
     printf("2 no %p ao %d\n", decoder->zlib_stream.next_out,
            decoder->zlib_stream.avail_out);
+
+    int scanline_bytes;
+    switch (decoder->color_type) {
+    case COLOR_GRAYSCALE:
+    case COLOR_INDEXED:
+      scanline_bytes = decoder->width * decoder->bit_depth;
+      break;
+    case COLOR_TRUECOLOR:
+      scanline_bytes = decoder->width * decoder->bit_depth * 3;
+      break;
+    case COLOR_GRAYSCALE_ALPHA:
+      scanline_bytes = decoder->width * decoder->bit_depth * 2;
+      break;
+    case COLOR_TRUECOLOR_ALPHA:
+      scanline_bytes = decoder->width * decoder->bit_depth * 4;
+      break;
+    }
+    scanline_bytes /= 8;
+
+    printf("depth %d color %d scan %d\n",
+           decoder->bit_depth, decoder->color_type,
+           scanline_bytes);
 
     break;
   }
