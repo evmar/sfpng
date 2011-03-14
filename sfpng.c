@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #include "crc.h"
 
@@ -28,18 +29,34 @@ struct _sfpng_decoder {
   char chunk_type[4];
   int chunk_ofs;
   char* chunk_buf;
+
+  /* Read from IHDR chunk. */
+  uint32_t width;
+  uint32_t height;
 };
 
 typedef struct {
   const char* buf;
   int len;
 } stream;
+
 static void stream_consume(stream* stream, int bytes) {
   stream->buf += bytes;
   stream->len -= bytes;
 }
+static uint32_t stream_read_uint32(stream* stream) {
+  uint32_t i;
+  memcpy(&i, stream->buf, 4);
+  stream_consume(stream, 4);
+  return ntohl(i);
+}
+static uint8_t stream_read_byte(stream* stream) {
+  uint8_t i = stream->buf[0];
+  stream_consume(stream, 1);
+  return i;
+}
 
-//#define PNG_TAG(a,b,c,d) (*uint32_t)((a<<24)|(b<<16)|(c<<8)|d))
+#define PNG_TAG(a,b,c,d) ((uint32_t)((a<<24)|(b<<16)|(c<<8)|d))
 
 static const char png_signature[8] = {
   137, 80, 78, 71, 13, 10, 26, 10
@@ -56,6 +73,27 @@ sfpng_decoder* sfpng_decoder_new() {
   crc_init_table(decoder->crc_table);
 
   return decoder;
+}
+
+static sfpng_status process_chunk(sfpng_decoder* decoder) {
+  uint32_t type = PNG_TAG(decoder->chunk_type[0],
+                          decoder->chunk_type[1],
+                          decoder->chunk_type[2],
+                          decoder->chunk_type[3]);
+
+  if (decoder->chunk_len == 13 &&
+      type == PNG_TAG('I', 'H', 'D', 'R')) {
+    stream src = { decoder->chunk_buf, decoder->chunk_len };
+    decoder->width = stream_read_uint32(&src);
+    decoder->height = stream_read_uint32(&src);
+    printf("%dx%d\n", decoder->width, decoder->height);
+    /* XXX read other fields. */
+  } else if (decoder->chunk_len == 9 &&
+             type == PNG_TAG('p', 'H', 'Y', 's')) {
+    /* 11.3.5.3 pHYs Physical pixel dimensions */
+    /* Don't care. */
+  }
+  return SFPNG_SUCCESS;
 }
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
@@ -125,8 +163,6 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       /* Fall through. */
     }
     case STATE_CHUNK_CRC: {
-      uint32_t expected_crc;
-
       int wanted_bytes = 4 - decoder->in_len;
       int have_bytes = min(wanted_bytes, src.len);
       memcpy(decoder->in_buf + decoder->in_len, src.buf, have_bytes);
@@ -136,6 +172,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       if (decoder->in_len < 4)
         return SFPNG_SUCCESS;
 
+      uint32_t expected_crc;
       memcpy(&expected_crc, decoder->in_buf, 4);
       expected_crc = ntohl(expected_crc);
 
@@ -145,6 +182,10 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
 
       if (actual_crc != expected_crc)
         return SFPNG_ERROR_BAD_CRC;
+
+      sfpng_status status = process_chunk(decoder);
+      if (status != SFPNG_SUCCESS)
+        return status;
 
       decoder->state = STATE_CHUNK_HEADER;
       decoder->in_len = 0;
