@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 
+#include <zlib.h>
+
 #include "crc.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -17,6 +19,14 @@ typedef enum {
   STATE_CHUNK_DATA,
   STATE_CHUNK_CRC,
 } decode_state;
+
+typedef enum {
+  COLOR_GRAYSCALE = 0,
+  COLOR_TRUECOLOR = 2,
+  COLOR_INDEXED = 3,
+  COLOR_GRAYSCALE_ALPHA = 4,
+  COLOR_TRUECOLOR_ALPHA = 6,
+} color_type;
 
 struct _sfpng_decoder {
   crc_table crc_table;
@@ -33,6 +43,12 @@ struct _sfpng_decoder {
   /* Read from IHDR chunk. */
   uint32_t width;
   uint32_t height;
+  int bit_depth;
+  color_type color_type;
+
+  z_stream zlib_stream;
+  unsigned char zlib_buf[16 << 10];
+  int zlib_ofs;
 };
 
 typedef struct {
@@ -85,6 +101,51 @@ sfpng_decoder* sfpng_decoder_new() {
   return decoder;
 }
 
+static sfpng_status parse_color(sfpng_decoder* decoder,
+                                int color_type) {
+  switch (color_type) {
+  case 0: {
+    if (bit_depth != 1 && bit_depth != 2 && bit_depth != 4 &&
+        bit_depth != 8 && bit_depth != 16) {
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    }
+    decoder->color_type = COLOR_GRAYSCALE;
+    break;
+  }
+  case 2: {
+    if (bit_depth != 8 && bit_depth != 16)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    decoder->color_type = COLOR_TRUECOLOR;
+    break;
+  }
+  case 3: {
+    if (bit_depth != 1 && bit_depth != 2 && bit_depth != 4 &&
+        bit_depth != 8) {
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    }
+    decoder->color_type = COLOR_INDEXED;
+    break;
+  }
+  case 4: {
+    if (bit_depth != 8 && bit_depth != 16)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    decoder->color_type = COLOR_GRAYSCALE_ALPHA;
+    break;
+  }
+  case 6: {
+    if (bit_depth != 8 && bit_depth != 16)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    decoder->color_type = COLOR_TRUECOLOR_ALPHA;
+    break;
+  }
+  }
+
+  /* If we get here, the bit depth / color type combination has been
+     verified. */
+  decoder->bit_depth = bit_depth;
+  return SFPNG_SUCCESS;
+}
+
 static sfpng_status process_chunk(sfpng_decoder* decoder) {
   uint32_t type = PNG_TAG(decoder->chunk_type[0],
                           decoder->chunk_type[1],
@@ -93,7 +154,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   stream src = { decoder->chunk_buf, decoder->chunk_len };
 
   switch (type) {
-  case PNG_TAG('I', 'H', 'D', 'R'): {
+  case PNG_TAG('I','H','D','R'): {
     /* 11.2.2 IHDR Image header */
     if (decoder->chunk_len != 13)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
@@ -107,7 +168,9 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
 
     int bit_depth = stream_read_byte(&src);
     int color_type = stream_read_byte(&src);
-    /* XXX validate depth/color info. */
+    sfpng_status status = parse_color(decoder, bit_depth, color_type);
+    if (status != SFPNG_SUCCESS)
+      return status;
 
     /* Compression/filter are currently unused. */
     int compression = stream_read_byte(&src);
@@ -122,15 +185,32 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     break;
   }
-  case PNG_TAG('p', 'H', 'Y', 's'): {
+  case PNG_TAG('p','H','Y','s'): {
     /* 11.3.5.3 pHYs Physical pixel dimensions */
     if (decoder->chunk_len != 9)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     /* Don't care. */
     break;
   }
-  case PNG_TAG('I', 'D', 'A', 'T'): {
+  case PNG_TAG('I','D','A','T'): {
     /* image data */
+    if (!decoder->zlib_stream.next_in) {
+      decoder->zlib_stream.next_in = (unsigned char*)src.buf;
+      decoder->zlib_stream.avail_in = src.len;
+      if (inflateInit(&decoder->zlib_stream) != Z_OK)
+        return SFPNG_ERROR_ZLIB_ERROR;
+    }
+
+    decoder->zlib_stream.next_out = decoder->zlib_buf + decoder->zlib_ofs;
+    decoder->zlib_stream.avail_out =
+        sizeof(decoder->zlib_buf) + decoder->zlib_ofs;
+    printf("no %p ao %d\n", decoder->zlib_stream.next_out,
+           decoder->zlib_stream.avail_out);
+    if (inflate(&decoder->zlib_stream, Z_NO_FLUSH) != Z_OK)
+      return SFPNG_ERROR_ZLIB_ERROR;
+    printf("2 no %p ao %d\n", decoder->zlib_stream.next_out,
+           decoder->zlib_stream.avail_out);
+
     break;
   }
   case PNG_TAG('I', 'E', 'N', 'D'): {
