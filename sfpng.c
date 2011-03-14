@@ -92,9 +92,12 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
                           decoder->chunk_type[3]);
   stream src = { decoder->chunk_buf, decoder->chunk_len };
 
-  if (decoder->chunk_len == 13 &&
-      type == PNG_TAG('I', 'H', 'D', 'R')) {
+  switch (type) {
+  case PNG_TAG('I', 'H', 'D', 'R'): {
     /* 11.2.2 IHDR Image header */
+    if (decoder->chunk_len != 13)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+
     decoder->width = stream_read_uint32(&src);
     decoder->height = stream_read_uint32(&src);
     if (decoder->width == 0 ||
@@ -117,10 +120,31 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     int interlace = stream_read_byte(&src);
     if (interlace != 0 && interlace != 1)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-  } else if (decoder->chunk_len == 9 &&
-             type == PNG_TAG('p', 'H', 'Y', 's')) {
+    break;
+  }
+  case PNG_TAG('p', 'H', 'Y', 's'): {
     /* 11.3.5.3 pHYs Physical pixel dimensions */
+    if (decoder->chunk_len != 9)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
     /* Don't care. */
+    break;
+  }
+  case PNG_TAG('I', 'D', 'A', 'T'): {
+    /* image data */
+    break;
+  }
+  case PNG_TAG('I', 'E', 'N', 'D'): {
+    /* 11.2.5 IEND Image trailer */
+    if (decoder->chunk_len != 0)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    break;
+  }
+  default:
+    printf("WARN: unhandled tag %c%c%c%c\n",
+           decoder->chunk_type[0],
+           decoder->chunk_type[1],
+           decoder->chunk_type[2],
+           decoder->chunk_type[3]);
   }
   return SFPNG_SUCCESS;
 }
