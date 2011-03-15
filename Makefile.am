@@ -11,3 +11,5 @@ sfpng_test_LDADD = libsfpng.a -lz
 
 png2pnm_SOURCES = png2pnm.c
 png2pnm_LDADD = libsfpng.a -lz
+
+TESTS = sfpng_test

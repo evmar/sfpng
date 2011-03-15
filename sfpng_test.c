@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 int main(int argc, char* argv[]) {
-  FILE* f = fopen(argv[1], "rb");
+  FILE* f = fopen("google.png", "rb");
   sfpng_decoder* decoder = sfpng_decoder_new();
   char buf[4096];
   size_t len;
