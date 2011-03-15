@@ -31,24 +31,30 @@ typedef enum {
 struct _sfpng_decoder {
   crc_table crc_table;
 
+  sfpng_row_func row_func;
+
+  /* Header decoding state. */
   decode_state state;
   uint8_t in_buf[8];
   int in_len;
 
+  /* Chunk decoding state. */
   int chunk_len;
   char chunk_type[4];
   int chunk_ofs;
   uint8_t* chunk_buf;
 
-  /* Read from IHDR chunk. */
+  /* Image properties, read from IHDR chunk. */
   uint32_t width;
   uint32_t height;
   int bit_depth;
   color_type color_type;
 
+  /* Derived image properties, computed from above. */
   int stride;
   int bytes_per_pixel;
 
+  /* IDAT decoding state. */
   z_stream zlib_stream;
   uint8_t scanline_buf[8 << 16];
 };
@@ -214,27 +220,8 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     int interlace = stream_read_byte(&src);
     if (interlace != 0 && interlace != 1)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    break;
-  }
-  case PNG_TAG('p','H','Y','s'): {
-    /* 11.3.5.3 pHYs Physical pixel dimensions */
-    if (decoder->chunk_len != 9)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-    /* Don't care. */
-    break;
-  }
-  case PNG_TAG('I','D','A','T'): {
-    /* image data */
-    if (!decoder->zlib_stream.next_in) {
-      decoder->zlib_stream.next_in = (uint8_t*)src.buf;
-      decoder->zlib_stream.avail_in = src.len;
-      if (inflateInit(&decoder->zlib_stream) != Z_OK)
-        return SFPNG_ERROR_ZLIB_ERROR;
 
-      decoder->zlib_stream.next_out = (uint8_t*)decoder->scanline_buf;
-      decoder->zlib_stream.avail_out = sizeof(decoder->scanline_buf);
-    }
-
+    /* Done parsing.  Now compute derived attributes. */
     int scanline_bits;
     switch (decoder->color_type) {
     case COLOR_GRAYSCALE:
@@ -256,9 +243,30 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
       decoder->bytes_per_pixel = 4 * (decoder->bit_depth / 8);
       break;
     }
-    /* We want one byte for the filter format, and then to round scanline_bits
-       up to the nearest byte. */
+    /* Round scanline_bits up to the nearest byte. */
     decoder->stride = ((scanline_bits + 7) / 8);
+
+    break;
+  }
+  case PNG_TAG('p','H','Y','s'): {
+    /* 11.3.5.3 pHYs Physical pixel dimensions */
+    if (decoder->chunk_len != 9)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    /* Don't care. */
+    break;
+  }
+  case PNG_TAG('I','D','A','T'): {
+    /* image data */
+    if (!decoder->zlib_stream.next_in) {
+      decoder->zlib_stream.next_in = (uint8_t*)src.buf;
+      decoder->zlib_stream.avail_in = src.len;
+      if (inflateInit(&decoder->zlib_stream) != Z_OK)
+        return SFPNG_ERROR_ZLIB_ERROR;
+
+      decoder->zlib_stream.next_out = (uint8_t*)decoder->scanline_buf;
+      decoder->zlib_stream.avail_out = sizeof(decoder->scanline_buf);
+    }
+
     int scanline_bytes = 1 + decoder->stride;
 
     while (decoder->zlib_stream.next_out <
@@ -279,6 +287,10 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     sfpng_status status = reconstruct_filter(decoder);
     if (status != SFPNG_SUCCESS)
       return status;
+    if (decoder->row_func) {
+      decoder->row_func(/* XXX */ NULL, decoder, 0,
+                        decoder->scanline_buf + 1, decoder->stride);
+    }
 
     break;
   }
@@ -296,6 +308,17 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
            decoder->chunk_type[3]);
   }
   return SFPNG_SUCCESS;
+}
+
+void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
+                                sfpng_row_func row_func) {
+  decoder->row_func = row_func;
+}
+int sfpng_decoder_get_width(sfpng_decoder* decoder) {
+  return decoder->width;
+}
+int sfpng_decoder_get_height(sfpng_decoder* decoder) {
+  return decoder->height;
 }
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
