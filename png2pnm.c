@@ -25,8 +25,13 @@ static void row_func(void* context,
       printf("%d %d %d ", buf_bytes[x], buf_bytes[x+1], buf_bytes[x+2]);
     break;
   case SFPNG_COLOR_TRUECOLOR_ALPHA:
-    for (x = 0; x < bytes; x += 4)
-      printf("%d %d %d ", buf_bytes[x], buf_bytes[x+1], buf_bytes[x+2]);
+    for (x = 0; x < bytes; x += 4) {
+      int a = buf_bytes[x+3];
+      printf("%d %d %d ",
+             buf_bytes[x] * a / 255,
+             buf_bytes[x+1] * a / 255,
+             buf_bytes[x+2] * a / 255);
+    }
     break;
   default:
     fprintf(stderr, "color format unhandled\n");
