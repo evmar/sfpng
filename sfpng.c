@@ -137,12 +137,10 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
     break;
   }
   case FILTER_UP: {
-    if (decoder->scanline_row > 0) {
-      int i;
-      for (i = 0; i < decoder->stride; ++i) {
-        uint8_t b = decoder->scanline_prev_buf[i + 1];
-        buf[i] = buf[i] + b;
-      }
+    int i;
+    for (i = 0; i < decoder->stride; ++i) {
+      uint8_t b = decoder->scanline_prev_buf[i + 1];
+      buf[i] = buf[i] + b;
     }
     break;
   }
@@ -162,10 +160,9 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
     for (i = 0; i < decoder->stride; ++i) {
       int prev = i - decoder->bytes_per_pixel;
       int a = prev >= 0 ? buf[prev] : 0;
-      int b = decoder->scanline_row > 0 ?
-        decoder->scanline_prev_buf[i + 1] : 0;
-      int c = prev >= 0 && decoder->scanline_row > 0 ?
-        decoder->scanline_prev_buf[prev + 1] : 0;
+      int b = decoder->scanline_prev_buf[i + 1];
+      int c = prev >= 0 ? decoder->scanline_prev_buf[prev + 1] : 0;
+
       int p = a + b - c;
       int pa = abs(p - a);
       int pb = abs(p - b);
@@ -173,7 +170,7 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
       uint8_t old = buf[i];
       if (pa <= pb && pa <= pc)
         buf[i] = buf[i] + a;
-      else if (pb < pc)
+      else if (pb <= pc)
         buf[i] = buf[i] + b;
       else
         buf[i] = buf[i] + c;
@@ -298,6 +295,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     decoder->scanline_prev_buf = malloc(1 + decoder->stride);
     if (!decoder->scanline_prev_buf)
       return SFPNG_ERROR_ALLOC_FAILED;
+    memset(decoder->scanline_prev_buf, 0, 1 + decoder->stride);
 
     break;
   }
