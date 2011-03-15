@@ -19,8 +19,18 @@ static void row_func(void* context,
 
   const uint8_t* buf_bytes = buf;
   int x;
-  for (x = 0; x < bytes; ++x)
-    printf("%d ", buf_bytes[x]);
+  switch (sfpng_decoder_get_color_type(decoder)) {
+  case SFPNG_COLOR_TRUECOLOR:
+    for (x = 0; x < bytes; x += 3)
+      printf("%d %d %d ", buf_bytes[x], buf_bytes[x+1], buf_bytes[x+2]);
+    break;
+  case SFPNG_COLOR_TRUECOLOR_ALPHA:
+    for (x = 0; x < bytes; x += 4)
+      printf("%d %d %d ", buf_bytes[x], buf_bytes[x+1], buf_bytes[x+2]);
+    break;
+  default:
+    fprintf(stderr, "color format unhandled\n");
+  }
   printf("\n");
 }
 
