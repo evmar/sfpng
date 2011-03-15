@@ -24,6 +24,7 @@ struct _sfpng_decoder {
   crc_table crc_table;
 
   sfpng_row_func row_func;
+  sfpng_unknown_chunk_func unknown_chunk_func;
 
   /* Header decoding state. */
   decode_state state;
@@ -353,11 +354,12 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     break;
   }
   default:
-    /*printf("WARN: unhandled tag %c%c%c%c\n",
-           decoder->chunk_type[0],
-           decoder->chunk_type[1],
-           decoder->chunk_type[2],
-           decoder->chunk_type[3]);*/
+    if (decoder->unknown_chunk_func) {
+      decoder->unknown_chunk_func(/* XXX */ NULL, decoder,
+                                  decoder->chunk_type,
+                                  decoder->chunk_buf,
+                                  decoder->chunk_len);
+    }
     break;
   }
   return SFPNG_SUCCESS;
@@ -367,6 +369,12 @@ void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
                                 sfpng_row_func row_func) {
   decoder->row_func = row_func;
 }
+void sfpng_decoder_set_unknown_chunk_func(sfpng_decoder* decoder,
+                                          sfpng_unknown_chunk_func chunk_func) {
+  decoder->unknown_chunk_func = chunk_func;
+}
+
+
 sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder) {
   return decoder->color_type;
 }

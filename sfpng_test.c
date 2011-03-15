@@ -4,9 +4,21 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+static void unknown_chunk(void* context, sfpng_decoder* decoder,
+                          char chunk_type[4],
+                          const void* buf, size_t bytes) {
+  printf("unknown chunk: %c%c%c%c, length %d\n",
+         chunk_type[0], chunk_type[1], chunk_type[2], chunk_type[3],
+         (int)bytes);
+}
+
 int main(int argc, char* argv[]) {
-  FILE* f = fopen("google.png", "rb");
+  const char* file = argc == 2 ? argv[1] : "google.png";
+  FILE* f = fopen(file, "rb");
+
   sfpng_decoder* decoder = sfpng_decoder_new();
+  sfpng_decoder_set_unknown_chunk_func(decoder, unknown_chunk);
+
   char buf[4096];
   size_t len;
   while ((len = fread(buf, 1, 10, f)) > 0) {
@@ -18,6 +30,7 @@ int main(int argc, char* argv[]) {
   }
   int width = sfpng_decoder_get_width(decoder);
   int height = sfpng_decoder_get_height(decoder);
+  printf("dimensions: %dx%d\n", width, height);
   sfpng_decoder_free(decoder);
 
   return 0;

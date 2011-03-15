@@ -28,9 +28,16 @@ typedef void (*sfpng_row_func)(void* context,
                                int row,
                                const void* buf,
                                size_t bytes);
-
 void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
                                 sfpng_row_func row_func);
+
+typedef void (*sfpng_unknown_chunk_func)(void* context,
+                                         sfpng_decoder* decoder,
+                                         char chunk_type[4],
+                                         const void* buf,
+                                         size_t bytes);
+void sfpng_decoder_set_unknown_chunk_func(sfpng_decoder* decoder,
+                                          sfpng_unknown_chunk_func chunk_func);
 
 sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder);
 int sfpng_decoder_get_width(const sfpng_decoder* decoder);
