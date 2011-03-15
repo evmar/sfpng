@@ -20,14 +20,6 @@ typedef enum {
   STATE_CHUNK_CRC,
 } decode_state;
 
-typedef enum {
-  COLOR_GRAYSCALE = 0,
-  COLOR_TRUECOLOR = 2,
-  COLOR_INDEXED = 3,
-  COLOR_GRAYSCALE_ALPHA = 4,
-  COLOR_TRUECOLOR_ALPHA = 6,
-} color_type;
-
 struct _sfpng_decoder {
   crc_table crc_table;
 
@@ -48,7 +40,7 @@ struct _sfpng_decoder {
   uint32_t width;
   uint32_t height;
   int bit_depth;
-  color_type color_type;
+  sfpng_color_type color_type;
 
   /* Derived image properties, computed from above. */
   int stride;
@@ -187,29 +179,29 @@ static sfpng_status parse_color(sfpng_decoder* decoder,
                                 int bit_depth,
                                 int color_type) {
   switch (color_type) {
-  case COLOR_GRAYSCALE: {
+  case SFPNG_COLOR_GRAYSCALE: {
     if (bit_depth != 1 && bit_depth != 2 && bit_depth != 4 &&
         bit_depth != 8 && bit_depth != 16) {
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     }
     break;
   }
-  case COLOR_TRUECOLOR: {
+  case SFPNG_COLOR_TRUECOLOR: {
     if (bit_depth != 8 && bit_depth != 16)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     break;
   }
-  case COLOR_INDEXED: {
+  case SFPNG_COLOR_INDEXED: {
     if (bit_depth != 1 && bit_depth != 2 && bit_depth != 4 && bit_depth != 8)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     break;
   }
-  case COLOR_GRAYSCALE_ALPHA: {
+  case SFPNG_COLOR_GRAYSCALE_ALPHA: {
     if (bit_depth != 8 && bit_depth != 16)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     break;
   }
-  case COLOR_TRUECOLOR_ALPHA: {
+  case SFPNG_COLOR_TRUECOLOR_ALPHA: {
     if (bit_depth != 8 && bit_depth != 16)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     break;
@@ -266,21 +258,21 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* Done parsing.  Now compute derived attributes. */
     int scanline_bits;
     switch (decoder->color_type) {
-    case COLOR_GRAYSCALE:
-    case COLOR_INDEXED:
+    case SFPNG_COLOR_GRAYSCALE:
+    case SFPNG_COLOR_INDEXED:
       scanline_bits = decoder->width * decoder->bit_depth;
       decoder->bytes_per_pixel =
           decoder->bit_depth < 8 ? 1 : (decoder->bit_depth / 8);
       break;
-    case COLOR_TRUECOLOR:
+    case SFPNG_COLOR_TRUECOLOR:
       scanline_bits = decoder->width * decoder->bit_depth * 3;
       decoder->bytes_per_pixel = 3 * (decoder->bit_depth / 8);
       break;
-    case COLOR_GRAYSCALE_ALPHA:
+    case SFPNG_COLOR_GRAYSCALE_ALPHA:
       scanline_bits = decoder->width * decoder->bit_depth * 2;
       decoder->bytes_per_pixel = 2 * (decoder->bit_depth / 8);
       break;
-    case COLOR_TRUECOLOR_ALPHA:
+    case SFPNG_COLOR_TRUECOLOR_ALPHA:
       scanline_bits = decoder->width * decoder->bit_depth * 4;
       decoder->bytes_per_pixel = 4 * (decoder->bit_depth / 8);
       break;
@@ -361,11 +353,12 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     break;
   }
   default:
-    printf("WARN: unhandled tag %c%c%c%c\n",
+    /*printf("WARN: unhandled tag %c%c%c%c\n",
            decoder->chunk_type[0],
            decoder->chunk_type[1],
            decoder->chunk_type[2],
-           decoder->chunk_type[3]);
+           decoder->chunk_type[3]);*/
+    break;
   }
   return SFPNG_SUCCESS;
 }
@@ -374,10 +367,13 @@ void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
                                 sfpng_row_func row_func) {
   decoder->row_func = row_func;
 }
-int sfpng_decoder_get_width(sfpng_decoder* decoder) {
+sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder) {
+  return decoder->color_type;
+}
+int sfpng_decoder_get_width(const sfpng_decoder* decoder) {
   return decoder->width;
 }
-int sfpng_decoder_get_height(sfpng_decoder* decoder) {
+int sfpng_decoder_get_height(const sfpng_decoder* decoder) {
   return decoder->height;
 }
 
