@@ -245,8 +245,8 @@ static sfpng_status update_header_derived_values(sfpng_decoder* decoder) {
   return SFPNG_SUCCESS;
 }
 
-static sfpng_status process_header(sfpng_decoder* decoder,
-                                   stream* src) {
+static sfpng_status process_header_chunk(sfpng_decoder* decoder,
+                                         stream* src) {
   /* 11.2.2 IHDR Image header */
   if (decoder->chunk_len != 13)
     return SFPNG_ERROR_BAD_ATTRIBUTE;
@@ -279,6 +279,47 @@ static sfpng_status process_header(sfpng_decoder* decoder,
   return update_header_derived_values(decoder);
 }
 
+static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
+                                             stream* src) {
+  int needs_init = !decoder->zlib_stream.next_in;
+
+  decoder->zlib_stream.next_in = (uint8_t*)src->buf;
+  decoder->zlib_stream.avail_in = src->len;
+  if (needs_init) {
+    if (inflateInit(&decoder->zlib_stream) != Z_OK)
+      return SFPNG_ERROR_ZLIB_ERROR;
+
+    decoder->zlib_stream.next_out = decoder->scanline_buf;
+    decoder->zlib_stream.avail_out = 1 + decoder->stride;
+  }
+
+  while (decoder->zlib_stream.avail_in) {
+    int status = inflate(&decoder->zlib_stream, Z_SYNC_FLUSH);
+    if (status != Z_OK && status != Z_STREAM_END)
+      return SFPNG_ERROR_ZLIB_ERROR;
+    if (decoder->zlib_stream.avail_out == 0) {
+      /* Decoded line. */
+      sfpng_status status = reconstruct_filter(decoder);
+      if (status != SFPNG_SUCCESS)
+        return status;
+      if (decoder->row_func) {
+        decoder->row_func(/* XXX */ NULL, decoder, decoder->scanline_row,
+                          decoder->scanline_buf + 1, decoder->stride);
+      }
+      ++decoder->scanline_row;
+
+      /* Swap buffers, so prev points at the row we just finished. */
+      uint8_t* tmp = decoder->scanline_prev_buf;
+      decoder->scanline_prev_buf = decoder->scanline_buf;
+      decoder->scanline_buf = tmp;
+
+      /* Set up for next line. */
+      decoder->zlib_stream.next_out = decoder->scanline_buf;
+      decoder->zlib_stream.avail_out = 1 + decoder->stride;
+    }
+  }
+}
+
 static sfpng_status process_chunk(sfpng_decoder* decoder) {
   uint32_t type = PNG_TAG(decoder->chunk_type[0],
                           decoder->chunk_type[1],
@@ -288,55 +329,16 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
 
   switch (type) {
   case PNG_TAG('I','H','D','R'):
-    return process_header(decoder, &src);
+    return process_header_chunk(decoder, &src);
   case PNG_TAG('p','H','Y','s'):
     /* 11.3.5.3 pHYs Physical pixel dimensions */
     if (decoder->chunk_len != 9)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     /* Don't care. */
     break;
-  case PNG_TAG('I','D','A','T'): {
-    /* image data */
-    int needs_init = !decoder->zlib_stream.next_in;
-
-    decoder->zlib_stream.next_in = (uint8_t*)src.buf;
-    decoder->zlib_stream.avail_in = src.len;
-    if (needs_init) {
-      if (inflateInit(&decoder->zlib_stream) != Z_OK)
-        return SFPNG_ERROR_ZLIB_ERROR;
-
-      decoder->zlib_stream.next_out = decoder->scanline_buf;
-      decoder->zlib_stream.avail_out = 1 + decoder->stride;
-    }
-
-    while (decoder->zlib_stream.avail_in) {
-      int status = inflate(&decoder->zlib_stream, Z_SYNC_FLUSH);
-      if (status != Z_OK && status != Z_STREAM_END)
-        return SFPNG_ERROR_ZLIB_ERROR;
-      if (decoder->zlib_stream.avail_out == 0) {
-        /* Decoded line. */
-        sfpng_status status = reconstruct_filter(decoder);
-        if (status != SFPNG_SUCCESS)
-          return status;
-        if (decoder->row_func) {
-          decoder->row_func(/* XXX */ NULL, decoder, decoder->scanline_row,
-                            decoder->scanline_buf + 1, decoder->stride);
-        }
-        ++decoder->scanline_row;
-
-        /* Swap buffers, so prev points at the row we just finished. */
-        uint8_t* tmp = decoder->scanline_prev_buf;
-        decoder->scanline_prev_buf = decoder->scanline_buf;
-        decoder->scanline_buf = tmp;
-
-        /* Set up for next line. */
-        decoder->zlib_stream.next_out = decoder->scanline_buf;
-        decoder->zlib_stream.avail_out = 1 + decoder->stride;
-      }
-    }
-
+  case PNG_TAG('I','D','A','T'):
+    process_image_data_chunk(decoder, &src);
     break;
-  }
   case PNG_TAG('I', 'E', 'N', 'D'): {
     /* 11.2.5 IEND Image trailer */
     if (decoder->chunk_len != 0)
