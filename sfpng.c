@@ -318,6 +318,7 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
       decoder->zlib_stream.avail_out = 1 + decoder->stride;
     }
   }
+  return SFPNG_SUCCESS;
 }
 
 static sfpng_status process_chunk(sfpng_decoder* decoder) {
