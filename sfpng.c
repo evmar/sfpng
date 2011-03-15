@@ -112,6 +112,19 @@ enum filter_type {
   FILTER_PAETH
 };
 
+static int paeth(int a, int b, int c) {
+  int p = a + b - c;
+  int pa = abs(p - a);
+  int pb = abs(p - b);
+  int pc = abs(p - c);
+  if (pa <= pb && pa <= pc)
+    return a;
+  else if (pb <= pc)
+    return b;
+  else
+    return c;
+}
+
 static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
   /* 9.2 Filter types for filter method 0 */
   int filter_type = decoder->scanline_buf[0];
@@ -146,18 +159,7 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
       int a = last >= 0 ? buf[last] : 0;
       int b = prev[i];
       int c = last >= 0 ? prev[last] : 0;
-
-      int p = a + b - c;
-      int pa = abs(p - a);
-      int pb = abs(p - b);
-      int pc = abs(p - c);
-      uint8_t old = buf[i];
-      if (pa <= pb && pa <= pc)
-        buf[i] = buf[i] + a;
-      else if (pb <= pc)
-        buf[i] = buf[i] + b;
-      else
-        buf[i] = buf[i] + c;
+      buf[i] = buf[i] + paeth(a, b, c);
     }
     break;
   default:
