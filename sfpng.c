@@ -207,6 +207,78 @@ static sfpng_status parse_color(sfpng_decoder* decoder,
   return SFPNG_SUCCESS;
 }
 
+
+static sfpng_status update_header_derived_values(sfpng_decoder* decoder) {
+  int scanline_bits;
+  switch (decoder->color_type) {
+  case SFPNG_COLOR_GRAYSCALE:
+  case SFPNG_COLOR_INDEXED:
+    scanline_bits = decoder->width * decoder->bit_depth;
+    decoder->bytes_per_pixel =
+      decoder->bit_depth < 8 ? 1 : (decoder->bit_depth / 8);
+    break;
+  case SFPNG_COLOR_TRUECOLOR:
+    scanline_bits = decoder->width * decoder->bit_depth * 3;
+    decoder->bytes_per_pixel = 3 * (decoder->bit_depth / 8);
+    break;
+  case SFPNG_COLOR_GRAYSCALE_ALPHA:
+    scanline_bits = decoder->width * decoder->bit_depth * 2;
+    decoder->bytes_per_pixel = 2 * (decoder->bit_depth / 8);
+    break;
+  case SFPNG_COLOR_TRUECOLOR_ALPHA:
+    scanline_bits = decoder->width * decoder->bit_depth * 4;
+    decoder->bytes_per_pixel = 4 * (decoder->bit_depth / 8);
+    break;
+  }
+  /* Round scanline_bits up to the nearest byte. */
+  decoder->stride = ((scanline_bits + 7) / 8);
+
+  /* Allocate scanline buffers, with extra byte for filter tag. */
+  decoder->scanline_buf = malloc(1 + decoder->stride);
+  if (!decoder->scanline_buf)
+    return SFPNG_ERROR_ALLOC_FAILED;
+  decoder->scanline_prev_buf = malloc(1 + decoder->stride);
+  if (!decoder->scanline_prev_buf)
+    return SFPNG_ERROR_ALLOC_FAILED;
+  memset(decoder->scanline_prev_buf, 0, 1 + decoder->stride);
+
+  return SFPNG_SUCCESS;
+}
+
+static sfpng_status process_header(sfpng_decoder* decoder,
+                                   stream* src) {
+  /* 11.2.2 IHDR Image header */
+  if (decoder->chunk_len != 13)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+
+  decoder->width = stream_read_uint32(src);
+  decoder->height = stream_read_uint32(src);
+  if (decoder->width == 0 ||
+      decoder->height == 0) {
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+  }
+
+  int bit_depth = stream_read_byte(src);
+  int color_type = stream_read_byte(src);
+  sfpng_status status = parse_color(decoder, bit_depth, color_type);
+  if (status != SFPNG_SUCCESS)
+    return status;
+
+  /* Compression/filter are currently unused. */
+  int compression = stream_read_byte(src);
+  if (compression != 0)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+  int filter = stream_read_byte(src);
+  if (filter != 0)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+
+  int interlace = stream_read_byte(src);
+  if (interlace != 0 && interlace != 1)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+
+  return update_header_derived_values(decoder);
+}
+
 static sfpng_status process_chunk(sfpng_decoder* decoder) {
   uint32_t type = PNG_TAG(decoder->chunk_type[0],
                           decoder->chunk_type[1],
@@ -215,79 +287,14 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   stream src = { decoder->chunk_buf, decoder->chunk_len };
 
   switch (type) {
-  case PNG_TAG('I','H','D','R'): {
-    /* 11.2.2 IHDR Image header */
-    if (decoder->chunk_len != 13)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-
-    decoder->width = stream_read_uint32(&src);
-    decoder->height = stream_read_uint32(&src);
-    if (decoder->width == 0 ||
-        decoder->height == 0) {
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-    }
-
-    int bit_depth = stream_read_byte(&src);
-    int color_type = stream_read_byte(&src);
-    sfpng_status status = parse_color(decoder, bit_depth, color_type);
-    if (status != SFPNG_SUCCESS)
-      return status;
-
-    /* Compression/filter are currently unused. */
-    int compression = stream_read_byte(&src);
-    if (compression != 0)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-    int filter = stream_read_byte(&src);
-    if (filter != 0)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-
-    int interlace = stream_read_byte(&src);
-    if (interlace != 0 && interlace != 1)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-
-    /* Done parsing.  Now compute derived attributes. */
-    int scanline_bits;
-    switch (decoder->color_type) {
-    case SFPNG_COLOR_GRAYSCALE:
-    case SFPNG_COLOR_INDEXED:
-      scanline_bits = decoder->width * decoder->bit_depth;
-      decoder->bytes_per_pixel =
-          decoder->bit_depth < 8 ? 1 : (decoder->bit_depth / 8);
-      break;
-    case SFPNG_COLOR_TRUECOLOR:
-      scanline_bits = decoder->width * decoder->bit_depth * 3;
-      decoder->bytes_per_pixel = 3 * (decoder->bit_depth / 8);
-      break;
-    case SFPNG_COLOR_GRAYSCALE_ALPHA:
-      scanline_bits = decoder->width * decoder->bit_depth * 2;
-      decoder->bytes_per_pixel = 2 * (decoder->bit_depth / 8);
-      break;
-    case SFPNG_COLOR_TRUECOLOR_ALPHA:
-      scanline_bits = decoder->width * decoder->bit_depth * 4;
-      decoder->bytes_per_pixel = 4 * (decoder->bit_depth / 8);
-      break;
-    }
-    /* Round scanline_bits up to the nearest byte. */
-    decoder->stride = ((scanline_bits + 7) / 8);
-
-    /* Allocate scanline buffers, with extra byte for filter tag. */
-    decoder->scanline_buf = malloc(1 + decoder->stride);
-    if (!decoder->scanline_buf)
-      return SFPNG_ERROR_ALLOC_FAILED;
-    decoder->scanline_prev_buf = malloc(1 + decoder->stride);
-    if (!decoder->scanline_prev_buf)
-      return SFPNG_ERROR_ALLOC_FAILED;
-    memset(decoder->scanline_prev_buf, 0, 1 + decoder->stride);
-
-    break;
-  }
-  case PNG_TAG('p','H','Y','s'): {
+  case PNG_TAG('I','H','D','R'):
+    return process_header(decoder, &src);
+  case PNG_TAG('p','H','Y','s'):
     /* 11.3.5.3 pHYs Physical pixel dimensions */
     if (decoder->chunk_len != 9)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     /* Don't care. */
     break;
-  }
   case PNG_TAG('I','D','A','T'): {
     /* image data */
     int needs_init = !decoder->zlib_stream.next_in;
