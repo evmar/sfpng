@@ -32,13 +32,13 @@ struct _sfpng_decoder {
   crc_table crc_table;
 
   decode_state state;
-  char in_buf[8];
+  uint8_t in_buf[8];
   int in_len;
 
   int chunk_len;
   char chunk_type[4];
   int chunk_ofs;
-  char* chunk_buf;
+  uint8_t* chunk_buf;
 
   /* Read from IHDR chunk. */
   uint32_t width;
@@ -46,13 +46,15 @@ struct _sfpng_decoder {
   int bit_depth;
   color_type color_type;
 
+  int stride;
+  int bytes_per_pixel;
+
   z_stream zlib_stream;
-  unsigned char zlib_buf[16 << 10];
-  int zlib_ofs;
+  uint8_t scanline_buf[8 << 16];
 };
 
 typedef struct {
-  const char* buf;
+  const uint8_t* buf;
   int len;
 } stream;
 
@@ -72,7 +74,7 @@ static uint8_t stream_read_byte(stream* stream) {
   return i;
 }
 
-static void fill_buffer(char* buf, int* have_len, int want_len,
+static void fill_buffer(uint8_t* buf, int* have_len, int want_len,
                         stream* src) {
   int want_bytes = want_len - *have_len;
   int take_bytes = min(src->len, want_bytes);
@@ -101,49 +103,76 @@ sfpng_decoder* sfpng_decoder_new() {
   return decoder;
 }
 
+enum filter_type {
+  FILTER_NONE = 0,
+  FILTER_SUB,
+  FILTER_UP,
+  FILTER_AVERAGE,
+  FILTER_PAETH
+};
+
+static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
+  /* 9.2 Filter types for filter method 0 */
+  uint8_t* buf = decoder->scanline_buf;
+  int filter_type = buf[0];
+  ++buf;
+
+  switch (filter_type) {
+  case FILTER_NONE:
+    break;
+  case FILTER_SUB: {
+    int i;
+    for (i = decoder->bytes_per_pixel; i < decoder->stride; ++i) {
+      int a = i - decoder->bytes_per_pixel;
+      buf[i] = buf[i] + buf[a];
+    }
+    break;
+  }
+  default:
+    return SFPNG_ERROR_BAD_FILTER;
+  }
+  return SFPNG_SUCCESS;
+}
+
 static sfpng_status parse_color(sfpng_decoder* decoder,
                                 int bit_depth,
                                 int color_type) {
   switch (color_type) {
-  case 0: {
+  case COLOR_GRAYSCALE: {
     if (bit_depth != 1 && bit_depth != 2 && bit_depth != 4 &&
         bit_depth != 8 && bit_depth != 16) {
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     }
-    decoder->color_type = COLOR_GRAYSCALE;
     break;
   }
-  case 2: {
+  case COLOR_TRUECOLOR: {
     if (bit_depth != 8 && bit_depth != 16)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    decoder->color_type = COLOR_TRUECOLOR;
     break;
   }
-  case 3: {
-    if (bit_depth != 1 && bit_depth != 2 && bit_depth != 4 &&
-        bit_depth != 8) {
+  case COLOR_INDEXED: {
+    if (bit_depth != 1 && bit_depth != 2 && bit_depth != 4 && bit_depth != 8)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    }
-    decoder->color_type = COLOR_INDEXED;
     break;
   }
-  case 4: {
+  case COLOR_GRAYSCALE_ALPHA: {
     if (bit_depth != 8 && bit_depth != 16)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    decoder->color_type = COLOR_GRAYSCALE_ALPHA;
     break;
   }
-  case 6: {
+  case COLOR_TRUECOLOR_ALPHA: {
     if (bit_depth != 8 && bit_depth != 16)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    decoder->color_type = COLOR_TRUECOLOR_ALPHA;
     break;
   }
+  default:
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
   }
 
   /* If we get here, the bit depth / color type combination has been
      verified. */
   decoder->bit_depth = bit_depth;
+  decoder->color_type = color_type;
   return SFPNG_SUCCESS;
 }
 
@@ -197,43 +226,59 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   case PNG_TAG('I','D','A','T'): {
     /* image data */
     if (!decoder->zlib_stream.next_in) {
-      decoder->zlib_stream.next_in = (unsigned char*)src.buf;
+      decoder->zlib_stream.next_in = (uint8_t*)src.buf;
       decoder->zlib_stream.avail_in = src.len;
       if (inflateInit(&decoder->zlib_stream) != Z_OK)
         return SFPNG_ERROR_ZLIB_ERROR;
+
+      decoder->zlib_stream.next_out = (uint8_t*)decoder->scanline_buf;
+      decoder->zlib_stream.avail_out = sizeof(decoder->scanline_buf);
     }
 
-    decoder->zlib_stream.next_out = decoder->zlib_buf + decoder->zlib_ofs;
-    decoder->zlib_stream.avail_out =
-        sizeof(decoder->zlib_buf) + decoder->zlib_ofs;
-    printf("no %p ao %d\n", decoder->zlib_stream.next_out,
-           decoder->zlib_stream.avail_out);
-    if (inflate(&decoder->zlib_stream, Z_NO_FLUSH) != Z_OK)
-      return SFPNG_ERROR_ZLIB_ERROR;
-    printf("2 no %p ao %d\n", decoder->zlib_stream.next_out,
-           decoder->zlib_stream.avail_out);
-
-    int scanline_bytes;
+    int scanline_bits;
     switch (decoder->color_type) {
     case COLOR_GRAYSCALE:
     case COLOR_INDEXED:
-      scanline_bytes = decoder->width * decoder->bit_depth;
+      scanline_bits = decoder->width * decoder->bit_depth;
+      decoder->bytes_per_pixel =
+          decoder->bit_depth < 8 ? 1 : (decoder->bit_depth / 8);
       break;
     case COLOR_TRUECOLOR:
-      scanline_bytes = decoder->width * decoder->bit_depth * 3;
+      scanline_bits = decoder->width * decoder->bit_depth * 3;
+      decoder->bytes_per_pixel = 3 * (decoder->bit_depth / 8);
       break;
     case COLOR_GRAYSCALE_ALPHA:
-      scanline_bytes = decoder->width * decoder->bit_depth * 2;
+      scanline_bits = decoder->width * decoder->bit_depth * 2;
+      decoder->bytes_per_pixel = 2 * (decoder->bit_depth / 8);
       break;
     case COLOR_TRUECOLOR_ALPHA:
-      scanline_bytes = decoder->width * decoder->bit_depth * 4;
+      scanline_bits = decoder->width * decoder->bit_depth * 4;
+      decoder->bytes_per_pixel = 4 * (decoder->bit_depth / 8);
       break;
     }
-    scanline_bytes /= 8;
+    /* We want one byte for the filter format, and then to round scanline_bits
+       up to the nearest byte. */
+    decoder->stride = ((scanline_bits + 7) / 8);
+    int scanline_bytes = 1 + decoder->stride;
 
-    printf("depth %d color %d scan %d\n",
-           decoder->bit_depth, decoder->color_type,
-           scanline_bytes);
+    while (decoder->zlib_stream.next_out <
+           decoder->scanline_buf + 1 + decoder->stride) {
+      /* xxx what about when there isn't enough input yet? */
+      printf("no %p ao 0x%x\n", decoder->zlib_stream.next_out,
+             decoder->zlib_stream.avail_out);
+      int status = inflate(&decoder->zlib_stream, Z_SYNC_FLUSH);
+      if (status != Z_OK) {
+        if (status == Z_STREAM_END)
+          break;
+        return SFPNG_ERROR_ZLIB_ERROR;
+      }
+      printf("2 no %p ao 0x%x\n", decoder->zlib_stream.next_out,
+             decoder->zlib_stream.avail_out);
+    }
+
+    sfpng_status status = reconstruct_filter(decoder);
+    if (status != SFPNG_SUCCESS)
+      return status;
 
     break;
   }
