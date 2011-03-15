@@ -1,5 +1,6 @@
 *.o
 
+/png2pnm
 /sfpng_test
 /libsfpng.a
 
