@@ -113,47 +113,38 @@ enum filter_type {
 
 static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
   /* 9.2 Filter types for filter method 0 */
-  uint8_t* buf = decoder->scanline_buf;
-  int filter_type = buf[0];
-  ++buf;
+  int filter_type = decoder->scanline_buf[0];
+  uint8_t* buf = decoder->scanline_buf + 1;
+  uint8_t* prev = decoder->scanline_prev_buf + 1;
+  int i;
+  int bpp = decoder->bytes_per_pixel;
 
   switch (filter_type) {
   case FILTER_NONE:
     break;
-  case FILTER_SUB: {
-    int i;
-    for (i = decoder->bytes_per_pixel; i < decoder->stride; ++i) {
-      uint8_t a = buf[i - decoder->bytes_per_pixel];
-      buf[i] = buf[i] + a;
-    }
+  case FILTER_SUB:
+    for (i = bpp; i < decoder->stride; ++i)
+      buf[i] = buf[i] + buf[i - bpp];
     break;
-  }
-  case FILTER_UP: {
-    int i;
-    for (i = 0; i < decoder->stride; ++i) {
-      uint8_t b = decoder->scanline_prev_buf[i + 1];
-      buf[i] = buf[i] + b;
-    }
+  case FILTER_UP:
+    for (i = 0; i < decoder->stride; ++i)
+      buf[i] = buf[i] + prev[i];
     break;
-  }
-  case FILTER_AVERAGE: {
-    int i;
+  case FILTER_AVERAGE:
     for (i = 0; i < decoder->stride; ++i) {
-      int prev = i - decoder->bytes_per_pixel;
-      uint8_t a = prev >= 0 ? buf[prev] : 0;
-      uint8_t b = decoder->scanline_prev_buf[i + 1];
+      int last = i - bpp;
+      int a = prev >= 0 ? buf[last] : 0;
+      int b = prev[i];
       int avg = (a + b) / 2;
       buf[i] = buf[i] + avg;
     }
     break;
-  }
-  case FILTER_PAETH: {
-    int i;
+  case FILTER_PAETH:
     for (i = 0; i < decoder->stride; ++i) {
-      int prev = i - decoder->bytes_per_pixel;
-      int a = prev >= 0 ? buf[prev] : 0;
-      int b = decoder->scanline_prev_buf[i + 1];
-      int c = prev >= 0 ? decoder->scanline_prev_buf[prev + 1] : 0;
+      int last = i - bpp;
+      int a = last >= 0 ? buf[last] : 0;
+      int b = prev[i];
+      int c = last >= 0 ? prev[last] : 0;
 
       int p = a + b - c;
       int pa = abs(p - a);
@@ -168,7 +159,6 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
         buf[i] = buf[i] + c;
     }
     break;
-  }
   default:
     return SFPNG_ERROR_BAD_FILTER;
   }
