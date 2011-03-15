@@ -354,6 +354,12 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* 11.2.5 IEND Image trailer */
     if (decoder->chunk_len != 0)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
+    if (decoder->zlib_stream.next_in) {
+      int status = inflateEnd(&decoder->zlib_stream);
+      decoder->zlib_stream.next_in = NULL;
+      if (status != Z_OK)
+        return SFPNG_ERROR_ZLIB_ERROR;
+    }
     break;
   }
   default:
@@ -464,5 +470,9 @@ void sfpng_decoder_free(sfpng_decoder* decoder) {
     free(decoder->scanline_buf);
   if (decoder->scanline_prev_buf)
     free(decoder->scanline_prev_buf);
+  if (decoder->zlib_stream.next_in) {
+    int status = inflateEnd(&decoder->zlib_stream);
+    /* We don't care about a bad status at this point. */
+  }
   free(decoder);
 }
