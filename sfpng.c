@@ -417,5 +417,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
 void sfpng_decoder_free(sfpng_decoder* decoder) {
   if (decoder->chunk_buf)
     free(decoder->chunk_buf);
+  if (decoder->scanline_buf)
+    free(decoder->scanline_buf);
   free(decoder);
 }
