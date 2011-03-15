@@ -57,6 +57,7 @@ struct _sfpng_decoder {
   /* IDAT decoding state. */
   z_stream zlib_stream;
   uint8_t* scanline_buf;
+  uint8_t* scanline_prev_buf;
   int scanline_row;
 };
 
@@ -130,8 +131,52 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
   case FILTER_SUB: {
     int i;
     for (i = decoder->bytes_per_pixel; i < decoder->stride; ++i) {
-      int a = i - decoder->bytes_per_pixel;
-      buf[i] = buf[i] + buf[a];
+      uint8_t a = buf[i - decoder->bytes_per_pixel];
+      buf[i] = buf[i] + a;
+    }
+    break;
+  }
+  case FILTER_UP: {
+    if (decoder->scanline_row > 0) {
+      int i;
+      for (i = 0; i < decoder->stride; ++i) {
+        uint8_t b = decoder->scanline_prev_buf[i + 1];
+        buf[i] = buf[i] + b;
+      }
+    }
+    break;
+  }
+  case FILTER_AVERAGE: {
+    int i;
+    for (i = 0; i < decoder->stride; ++i) {
+      int prev = i - decoder->bytes_per_pixel;
+      uint8_t a = prev >= 0 ? buf[prev] : 0;
+      uint8_t b = decoder->scanline_prev_buf[i + 1];
+      int avg = (a + b) / 2;
+      buf[i] = buf[i] + avg;
+    }
+    break;
+  }
+  case FILTER_PAETH: {
+    int i;
+    for (i = 0; i < decoder->stride; ++i) {
+      int prev = i - decoder->bytes_per_pixel;
+      int a = prev >= 0 ? buf[prev] : 0;
+      int b = decoder->scanline_row > 0 ?
+        decoder->scanline_prev_buf[i + 1] : 0;
+      int c = prev >= 0 && decoder->scanline_row > 0 ?
+        decoder->scanline_prev_buf[prev + 1] : 0;
+      int p = a + b - c;
+      int pa = abs(p - a);
+      int pb = abs(p - b);
+      int pc = abs(p - c);
+      uint8_t old = buf[i];
+      if (pa <= pb && pa <= pc)
+        buf[i] = buf[i] + a;
+      else if (pb < pc)
+        buf[i] = buf[i] + b;
+      else
+        buf[i] = buf[i] + c;
     }
     break;
   }
@@ -202,7 +247,6 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
         decoder->height == 0) {
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     }
-    printf("%dx%d\n", decoder->width, decoder->height);
 
     int bit_depth = stream_read_byte(&src);
     int color_type = stream_read_byte(&src);
@@ -247,9 +291,12 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* Round scanline_bits up to the nearest byte. */
     decoder->stride = ((scanline_bits + 7) / 8);
 
-    /* Allocate extra byte for filter tag. */
+    /* Allocate scanline buffers, with extra byte for filter tag. */
     decoder->scanline_buf = malloc(1 + decoder->stride);
     if (!decoder->scanline_buf)
+      return SFPNG_ERROR_ALLOC_FAILED;
+    decoder->scanline_prev_buf = malloc(1 + decoder->stride);
+    if (!decoder->scanline_prev_buf)
       return SFPNG_ERROR_ALLOC_FAILED;
 
     break;
@@ -263,41 +310,43 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   }
   case PNG_TAG('I','D','A','T'): {
     /* image data */
-    if (!decoder->zlib_stream.next_in) {
-      decoder->zlib_stream.next_in = (uint8_t*)src.buf;
-      decoder->zlib_stream.avail_in = src.len;
+    int needs_init = !decoder->zlib_stream.next_in;
+
+    decoder->zlib_stream.next_in = (uint8_t*)src.buf;
+    decoder->zlib_stream.avail_in = src.len;
+    if (needs_init) {
       if (inflateInit(&decoder->zlib_stream) != Z_OK)
         return SFPNG_ERROR_ZLIB_ERROR;
 
-      decoder->zlib_stream.next_out = (uint8_t*)decoder->scanline_buf;
+      decoder->zlib_stream.next_out = decoder->scanline_buf;
       decoder->zlib_stream.avail_out = 1 + decoder->stride;
     }
 
-    int scanline_bytes = 1 + decoder->stride;
-
-    while (decoder->zlib_stream.next_out <
-           decoder->scanline_buf + 1 + decoder->stride) {
-      /* xxx what about when there isn't enough input yet? */
-      printf("no %p ao 0x%x\n", decoder->zlib_stream.next_out,
-             decoder->zlib_stream.avail_out);
+    while (decoder->zlib_stream.avail_in) {
       int status = inflate(&decoder->zlib_stream, Z_SYNC_FLUSH);
-      if (status != Z_OK) {
-        if (status == Z_STREAM_END)
-          break;
+      if (status != Z_OK && status != Z_STREAM_END)
         return SFPNG_ERROR_ZLIB_ERROR;
-      }
-      printf("2 no %p ao 0x%x\n", decoder->zlib_stream.next_out,
-             decoder->zlib_stream.avail_out);
-    }
+      if (decoder->zlib_stream.avail_out == 0) {
+        /* Decoded line. */
+        sfpng_status status = reconstruct_filter(decoder);
+        if (status != SFPNG_SUCCESS)
+          return status;
+        if (decoder->row_func) {
+          decoder->row_func(/* XXX */ NULL, decoder, decoder->scanline_row,
+                            decoder->scanline_buf + 1, decoder->stride);
+        }
+        ++decoder->scanline_row;
 
-    sfpng_status status = reconstruct_filter(decoder);
-    if (status != SFPNG_SUCCESS)
-      return status;
-    if (decoder->row_func) {
-      decoder->row_func(/* XXX */ NULL, decoder, decoder->scanline_row,
-                        decoder->scanline_buf + 1, decoder->stride);
+        /* Swap buffers, so prev points at the row we just finished. */
+        uint8_t* tmp = decoder->scanline_prev_buf;
+        decoder->scanline_prev_buf = decoder->scanline_buf;
+        decoder->scanline_buf = tmp;
+
+        /* Set up for next line. */
+        decoder->zlib_stream.next_out = decoder->scanline_buf;
+        decoder->zlib_stream.avail_out = 1 + decoder->stride;
+      }
     }
-    ++decoder->scanline_row;
 
     break;
   }
@@ -357,12 +406,6 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       memcpy(&decoder->chunk_len, decoder->in_buf, 4);
       decoder->chunk_len = ntohl(decoder->chunk_len);
       memcpy(&decoder->chunk_type, decoder->in_buf + 4, 4);
-      printf("len %d chunk type %c%c%c%c\n",
-             decoder->chunk_len,
-             decoder->chunk_type[0],
-             decoder->chunk_type[1],
-             decoder->chunk_type[2],
-             decoder->chunk_type[3]);
 
       if (decoder->chunk_len) {
         decoder->chunk_buf = realloc(decoder->chunk_buf, decoder->chunk_len);
@@ -419,5 +462,7 @@ void sfpng_decoder_free(sfpng_decoder* decoder) {
     free(decoder->chunk_buf);
   if (decoder->scanline_buf)
     free(decoder->scanline_buf);
+  if (decoder->scanline_prev_buf)
+    free(decoder->scanline_prev_buf);
   free(decoder);
 }
