@@ -9,10 +9,18 @@ static void row_func(void* context,
                      int row,
                      const void* buf,
                      size_t bytes) {
+  if (row == 0) {
+    printf("P3\n");
+    printf("%d %d\n",
+           sfpng_decoder_get_width(decoder),
+           sfpng_decoder_get_height(decoder));
+    printf("255\n");
+  }
+
   const uint8_t* buf_bytes = buf;
   int x;
   for (x = 0; x < bytes; ++x)
-    printf("%02x", buf_bytes[x]);
+    printf("%d ", buf_bytes[x]);
   printf("\n");
 }
 

@@ -10,7 +10,6 @@ typedef enum {
   SFPNG_ERROR_BAD_ATTRIBUTE,
   SFPNG_ERROR_ZLIB_ERROR,
   SFPNG_ERROR_BAD_FILTER,
-  SFPNG_ERROR_NO_BUFFER,
 } sfpng_status;
 
 sfpng_decoder* sfpng_decoder_new();

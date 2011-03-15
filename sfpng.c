@@ -56,7 +56,8 @@ struct _sfpng_decoder {
 
   /* IDAT decoding state. */
   z_stream zlib_stream;
-  uint8_t scanline_buf[8 << 16];
+  uint8_t* scanline_buf;
+  int scanline_row;
 };
 
 typedef struct {
@@ -246,6 +247,11 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* Round scanline_bits up to the nearest byte. */
     decoder->stride = ((scanline_bits + 7) / 8);
 
+    /* Allocate extra byte for filter tag. */
+    decoder->scanline_buf = malloc(1 + decoder->stride);
+    if (!decoder->scanline_buf)
+      return SFPNG_ERROR_ALLOC_FAILED;
+
     break;
   }
   case PNG_TAG('p','H','Y','s'): {
@@ -264,7 +270,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
         return SFPNG_ERROR_ZLIB_ERROR;
 
       decoder->zlib_stream.next_out = (uint8_t*)decoder->scanline_buf;
-      decoder->zlib_stream.avail_out = sizeof(decoder->scanline_buf);
+      decoder->zlib_stream.avail_out = 1 + decoder->stride;
     }
 
     int scanline_bytes = 1 + decoder->stride;
@@ -288,9 +294,10 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     if (status != SFPNG_SUCCESS)
       return status;
     if (decoder->row_func) {
-      decoder->row_func(/* XXX */ NULL, decoder, 0,
+      decoder->row_func(/* XXX */ NULL, decoder, decoder->scanline_row,
                         decoder->scanline_buf + 1, decoder->stride);
     }
+    ++decoder->scanline_row;
 
     break;
   }
