@@ -51,6 +51,8 @@ struct _sfpng_decoder {
   /* Palette, from PLTE. */
   uint8_t* palette;
   int palette_entries;
+  /* Gamma, from gAMA. */
+  uint32_t gamma;
 
   /* IDAT decoding state. */
   z_stream zlib_stream;
@@ -356,8 +358,8 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* 11.3.3.2 gAMA Image gamma */
     if (decoder->chunk_len != 4)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    uint32_t gamma = stream_read_uint32(&src);
-    /* XXX save gamma. */
+    decoder->gamma = stream_read_uint32(&src);
+    /* Spec says: 0 gamma is meaningless and should be ignored. */
     break;
   }
   case PNG_TAG('p','H','Y','s'):
@@ -422,8 +424,15 @@ int sfpng_decoder_get_interlaced(const sfpng_decoder* decoder) {
 const uint8_t* sfpng_decoder_get_palette(const sfpng_decoder* decoder) {
   return decoder->palette;
 }
-const int sfpng_decoder_get_palette_entries(const sfpng_decoder* decoder) {
+int sfpng_decoder_get_palette_entries(const sfpng_decoder* decoder) {
   return decoder->palette_entries;
+}
+
+int sfpng_decoder_has_gamma(const sfpng_decoder* decoder) {
+  return decoder->gamma > 0;
+}
+float sfpng_decoder_get_gamma(const sfpng_decoder* decoder) {
+  return decoder->gamma / (float)100000;
 }
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,

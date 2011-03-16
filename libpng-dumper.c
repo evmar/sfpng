@@ -39,6 +39,10 @@ int main(int argc, char* argv[]) {
   int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
   printf("interlaced: %s\n", interlaced ? "yes" : "no");
 
+  double gamma;
+  if (png_get_gAMA(png, info, &gamma))
+    printf("gamma: %.2f\n", gamma);
+
   png_color* palette;
   int entries;
   if (png_get_PLTE(png, info, &palette, &entries)) {
@@ -52,10 +56,6 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
   }
-
-  /*double gamma;
-  if (png_get_gAMA(png, info, &gamma))
-  printf("gamma: %.2f\n", gamma);*/
 
   png_byte** row_pointers = png_get_rows(png, info);
 

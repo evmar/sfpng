@@ -43,6 +43,9 @@ int main(int argc, char* argv[]) {
   int interlaced = sfpng_decoder_get_interlaced(decoder);
   printf("interlaced: %s\n", interlaced ? "yes" : "no");
 
+  if (sfpng_decoder_has_gamma(decoder))
+    printf("gamma: %.2f\n", sfpng_decoder_get_gamma(decoder));
+
   const uint8_t* palette = sfpng_decoder_get_palette(decoder);
   if (palette) {
     printf("palette:");
