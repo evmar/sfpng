@@ -30,9 +30,9 @@ int main(int argc, char* argv[]) {
   png_init_io(png, f);
   png_read_png(png, info, 0, NULL);
 
-  printf("dimensions: %dx%d\n",
-         (int)png_get_image_width(png, info),
-         (int)png_get_image_height(png, info));
+  int width = png_get_image_width(png, info);
+  int height = png_get_image_height(png, info);
+  printf("dimensions: %dx%d\n", width, height);
   printf("bit depth: %d  color type: %d\n",
          png_get_bit_depth(png, info),
          png_get_color_type(png, info));
@@ -57,7 +57,18 @@ int main(int argc, char* argv[]) {
     printf("\n");
   }
 
-  png_byte** row_pointers = png_get_rows(png, info);
+  if (!interlaced && png_get_bit_depth(png, info) == 8 &&
+      png_get_color_type(png, info) == 2) {
+    png_byte** row_pointers = png_get_rows(png, info);
+    int stride = png_get_rowbytes(png, info);
+    int x, y;
+    for (y = 0; y < height; ++y) {
+      printf("%3d:", y);
+      for (x = 0; x < stride; ++x)
+        printf("%02x", (int)row_pointers[y][x]);
+      printf("\n");
+    }
+  }
 
  out:
   png_destroy_read_struct(&png, &info, NULL);
