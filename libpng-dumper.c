@@ -11,10 +11,20 @@ static void swallow_errors_function(png_structp png,
 }
 
 int main(int argc, char* argv[]) {
+  const char* filename = argv[1];
+  if (!filename) {
+    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
+    return 1;
+  }
+
   png_structp png;
   png_infop info = NULL;
 
-  FILE* f = fopen(argv[1], "rb");
+  FILE* f = fopen(filename, "rb");
+  if (!f) {
+    perror("fopen");
+    return 1;
+  }
 
   png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
                                NULL,

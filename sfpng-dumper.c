@@ -61,8 +61,17 @@ static void unknown_chunk(void* context, sfpng_decoder* decoder,
 }
 
 int main(int argc, char* argv[]) {
-  const char* file = argv[1];
-  FILE* f = fopen(file, "rb");
+  const char* filename = argv[1];
+  if (!filename) {
+    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
+    return 1;
+  }
+
+  FILE* f = fopen(filename, "rb");
+  if (!f) {
+    perror("fopen");
+    return 1;
+  }
 
   sfpng_decoder* decoder = sfpng_decoder_new();
   sfpng_decoder_set_row_func(decoder, row_func);
