@@ -18,8 +18,8 @@ int main(int argc, char* argv[]) {
 
   png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
                                NULL,
-                               swallow_warnings_function,
-                               swallow_errors_function);
+                               swallow_errors_function,
+                               swallow_warnings_function);
   if (setjmp(png_jmpbuf(png))) {
     /* Error happened. */
     printf("invalid image\n");

@@ -2,11 +2,11 @@
 
 for f in testsuite/*.png; do
     echo -n "$f: "
-    if diff -q <(./libpng-dumper $f) <(./sfpng-dumper $f) >/dev/null; then
+    if diff -q <(./libpng-dumper $f 2>&1) <(./sfpng-dumper $f) >/dev/null; then
         echo 'PASS'
     else
         echo 'FAIL'
-        diff -u <(./libpng-dumper $f) <(./sfpng-dumper $f)
+        diff -u <(./libpng-dumper $f 2>&1) <(./sfpng-dumper $f)
         exit 1
     fi
 done

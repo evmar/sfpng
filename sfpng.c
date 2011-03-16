@@ -347,6 +347,8 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     if (decoder->palette)
       return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple palettes? */
     decoder->palette = malloc(src.len);
+    if (!decoder->palette)
+      return SFPNG_ERROR_ALLOC_FAILED;
     memcpy(decoder->palette, src.buf, src.len);
     break;
   case PNG_TAG('g', 'A', 'M', 'A'): {
