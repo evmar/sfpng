@@ -461,14 +461,17 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       if (decoder->in_len < 8)
         return SFPNG_SUCCESS;
 
-      memcpy(&decoder->chunk_len, decoder->in_buf, 4);
-      decoder->chunk_len = ntohl(decoder->chunk_len);
+      uint32_t chunk_len;
+      memcpy(&chunk_len, decoder->in_buf, 4);
+      chunk_len = ntohl(chunk_len);
       memcpy(&decoder->chunk_type, decoder->in_buf + 4, 4);
 
-      if (decoder->chunk_len) {
-        decoder->chunk_buf = realloc(decoder->chunk_buf, decoder->chunk_len);
+      if (chunk_len) {
+        if (decoder->chunk_len < chunk_len)
+          decoder->chunk_buf = realloc(decoder->chunk_buf, chunk_len);
         if (!decoder->chunk_buf)
           return SFPNG_ERROR_ALLOC_FAILED;
+        decoder->chunk_len = chunk_len;
       }
 
       decoder->state = STATE_CHUNK_DATA;
