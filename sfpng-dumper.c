@@ -41,8 +41,7 @@ static void row_func(void* context,
     dump_attrs(decoder);
 
   if (sfpng_decoder_get_interlaced(decoder) ||
-      sfpng_decoder_get_depth(decoder) != 8 ||
-      sfpng_decoder_get_color_type(decoder) != SFPNG_COLOR_TRUECOLOR)
+      sfpng_decoder_get_depth(decoder) != 8)
     return;
 
   const uint8_t* buf_bytes = buf;

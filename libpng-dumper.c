@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
   info = png_create_info_struct(png);
 
   png_init_io(png, f);
-  png_read_png(png, info, 0, NULL);
+  png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
 
   int width = png_get_image_width(png, info);
   int height = png_get_image_height(png, info);
@@ -57,8 +57,7 @@ int main(int argc, char* argv[]) {
     printf("\n");
   }
 
-  if (!interlaced && png_get_bit_depth(png, info) == 8 &&
-      png_get_color_type(png, info) == 2) {
+  if (!interlaced && png_get_bit_depth(png, info) == 8) {
     png_byte** row_pointers = png_get_rows(png, info);
     int stride = png_get_rowbytes(png, info);
     int x, y;
