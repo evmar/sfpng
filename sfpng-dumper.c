@@ -40,8 +40,7 @@ static void row_func(void* context,
   if (row == 0)
     dump_attrs(decoder);
 
-  if (sfpng_decoder_get_interlaced(decoder) ||
-      sfpng_decoder_get_depth(decoder) != 8)
+  if (sfpng_decoder_get_interlaced(decoder))
     return;
 
   const uint8_t* buf_bytes = buf;

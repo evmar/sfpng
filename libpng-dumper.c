@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     printf("\n");
   }
 
-  if (!interlaced && png_get_bit_depth(png, info) == 8) {
+  if (!interlaced) {
     png_byte** row_pointers = png_get_rows(png, info);
     int stride = png_get_rowbytes(png, info);
     int x, y;
