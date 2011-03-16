@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 
   char buf[4096];
   size_t len;
-  while ((len = fread(buf, 1, 10, f)) >= 0) {
+  while ((len = fread(buf, 1, sizeof(buf), f)) >= 0) {
     sfpng_status status = sfpng_decoder_write(decoder, buf, len);
     if (status != SFPNG_SUCCESS) {
       if (status == SFPNG_ERROR_ALLOC_FAILED)
