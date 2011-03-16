@@ -1,13 +1,30 @@
 #include <libpng/png.h>
 
+static void swallow_warnings_function(png_structp png,
+                                      png_const_charp msg) {
+  /* Ignore. */
+}
+static void swallow_errors_function(png_structp png,
+                                    png_const_charp msg) {
+  /* Don't print anything, but we must at least longjmp for libpng's sake. */
+  longjmp(png_jmpbuf(png), 1);
+}
+
 int main(int argc, char* argv[]) {
-  png_structp png = NULL;
+  png_structp png;
   png_infop info = NULL;
 
   FILE* f = fopen(argv[1], "rb");
 
   png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-                               NULL, NULL, NULL);
+                               NULL,
+                               swallow_warnings_function,
+                               swallow_errors_function);
+  if (setjmp(png_jmpbuf(png))) {
+    /* Error happened. */
+    printf("invalid image\n");
+    goto out;
+  }
   info = png_create_info_struct(png);
 
   png_init_io(png, f);
