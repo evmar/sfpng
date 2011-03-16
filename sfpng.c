@@ -48,6 +48,10 @@ struct _sfpng_decoder {
   int stride;
   int bytes_per_pixel;
 
+  /* Palette, from PLTE. */
+  uint8_t* palette;
+  int palette_length;
+
   /* IDAT decoding state. */
   z_stream zlib_stream;
   uint8_t* scanline_buf;
@@ -336,6 +340,15 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   switch (type) {
   case PNG_TAG('I','H','D','R'):
     return process_header_chunk(decoder, &src);
+  case PNG_TAG('P', 'L', 'T', 'E'):
+    /* 11.2.3 PLTE Palette */
+    if (decoder->chunk_len > 3*256 || decoder->chunk_len % 3 != 0)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    if (decoder->palette)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple palettes? */
+    decoder->palette = malloc(src.len);
+    memcpy(decoder->palette, src.buf, src.len);
+    break;
   case PNG_TAG('g', 'A', 'M', 'A'): {
     /* 11.3.3.2 gAMA Image gamma */
     if (decoder->chunk_len != 4)
@@ -494,5 +507,7 @@ void sfpng_decoder_free(sfpng_decoder* decoder) {
     int status = inflateEnd(&decoder->zlib_stream);
     /* We don't care about a bad status at this point. */
   }
+  if (decoder->palette)
+    free(decoder->palette);
   free(decoder);
 }
