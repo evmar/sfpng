@@ -39,9 +39,10 @@ typedef void (*sfpng_unknown_chunk_func)(void* context,
 void sfpng_decoder_set_unknown_chunk_func(sfpng_decoder* decoder,
                                           sfpng_unknown_chunk_func chunk_func);
 
-sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder);
 int sfpng_decoder_get_width(const sfpng_decoder* decoder);
 int sfpng_decoder_get_height(const sfpng_decoder* decoder);
+int sfpng_decoder_get_depth(const sfpng_decoder* decoder);
+sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder);
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
                                  const void* buf,

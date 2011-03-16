@@ -30,9 +30,13 @@ int main(int argc, char* argv[]) {
     if (len == 0)
       break;
   }
-  int width = sfpng_decoder_get_width(decoder);
-  int height = sfpng_decoder_get_height(decoder);
-  printf("dimensions: %dx%d\n", width, height);
+  printf("dimensions: %dx%d\n",
+         sfpng_decoder_get_width(decoder),
+         sfpng_decoder_get_height(decoder));
+  printf("bit depth: %d  color type: %d\n",
+         sfpng_decoder_get_depth(decoder),
+         sfpng_decoder_get_color_type(decoder));
+
   sfpng_decoder_free(decoder);
 
   return 0;

@@ -334,6 +334,14 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   switch (type) {
   case PNG_TAG('I','H','D','R'):
     return process_header_chunk(decoder, &src);
+  case PNG_TAG('g', 'A', 'M', 'A'): {
+    /* 11.3.3.2 gAMA Image gamma */
+    if (decoder->chunk_len != 4)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    uint32_t gamma = stream_read_uint32(&src);
+    /* XXX save gamma. */
+    break;
+  }
   case PNG_TAG('p','H','Y','s'):
     /* 11.3.5.3 pHYs Physical pixel dimensions */
     if (decoder->chunk_len != 9)
@@ -377,14 +385,17 @@ void sfpng_decoder_set_unknown_chunk_func(sfpng_decoder* decoder,
 }
 
 
-sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder) {
-  return decoder->color_type;
-}
 int sfpng_decoder_get_width(const sfpng_decoder* decoder) {
   return decoder->width;
 }
 int sfpng_decoder_get_height(const sfpng_decoder* decoder) {
   return decoder->height;
+}
+int sfpng_decoder_get_depth(const sfpng_decoder* decoder) {
+  return decoder->bit_depth;
+}
+sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder) {
+  return decoder->color_type;
 }
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,

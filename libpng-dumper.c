@@ -23,6 +23,10 @@ int main(int argc, char* argv[]) {
          png_get_interlace_type(png, info) == PNG_INTERLACE_NONE
          ? "no" : "yes");
 
+  double gamma;
+  if (png_get_gAMA(png, info, &gamma))
+    printf("gamma: %.2f\n", gamma);
+
   png_byte** row_pointers = png_get_rows(png, info);
 
   png_destroy_read_struct(&png, &info, NULL);
