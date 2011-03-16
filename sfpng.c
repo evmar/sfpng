@@ -154,7 +154,7 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
   case FILTER_AVERAGE:
     for (i = 0; i < decoder->stride; ++i) {
       int last = i - bpp;
-      int a = prev >= 0 ? buf[last] : 0;
+      int a = last >= 0 ? buf[last] : 0;
       int b = prev[i];
       int avg = (a + b) / 2;
       buf[i] = buf[i] + avg;
