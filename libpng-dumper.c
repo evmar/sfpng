@@ -27,9 +27,9 @@ int main(int argc, char* argv[]) {
     goto out;
   }
 
-  double gamma;
+  /*double gamma;
   if (png_get_gAMA(png, info, &gamma))
-    printf("gamma: %.2f\n", gamma);
+  printf("gamma: %.2f\n", gamma);*/
 
   png_byte** row_pointers = png_get_rows(png, info);
 

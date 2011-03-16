@@ -7,6 +7,7 @@
 static void unknown_chunk(void* context, sfpng_decoder* decoder,
                           char chunk_type[4],
                           const void* buf, size_t bytes) {
+  if (0)
   printf("unknown chunk: %c%c%c%c, length %d\n",
          chunk_type[0], chunk_type[1], chunk_type[2], chunk_type[3],
          (int)bytes);
