@@ -4,12 +4,15 @@ noinst_LIBRARIES = libsfpng.a
 
 libsfpng_a_SOURCES = crc.c crc.h sfpng.c sfpng.h
 
-noinst_PROGRAMS = sfpng_test png2pnm
-
-sfpng_test_SOURCES = sfpng_test.c
-sfpng_test_LDADD = libsfpng.a -lz
+noinst_PROGRAMS = png2pnm
 
 png2pnm_SOURCES = png2pnm.c
 png2pnm_LDADD = libsfpng.a -lz
 
-TESTS = sfpng_test
+check_PROGRAMS = sfpng-dumper libpng-dumper
+sfpng_dumper_SOURCES = sfpng-dumper.c
+sfpng_dumper_LDADD = libsfpng.a -lz
+libpng_dumper_SOURCES = libpng-dumper.c
+libpng_dumper_LDADD = -lpng
+
+TESTS = run-test-suite.sh

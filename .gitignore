@@ -1,8 +1,9 @@
 *.o
 
-/png2pnm
-/sfpng_test
+/libpng-dumper
 /libsfpng.a
+/png2pnm
+/sfpng-dumper
 
 /.deps
 /Makefile
