@@ -9,7 +9,6 @@ for f in testsuite/*.png; do
         diff -u <(./libpng-dumper $f) <(./sfpng-dumper $f)
         exit 1
     fi
-    break
 done
 
 exit 0

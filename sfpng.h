@@ -43,6 +43,7 @@ int sfpng_decoder_get_width(const sfpng_decoder* decoder);
 int sfpng_decoder_get_height(const sfpng_decoder* decoder);
 int sfpng_decoder_get_depth(const sfpng_decoder* decoder);
 sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder);
+int sfpng_decoder_get_interlaced(const sfpng_decoder* decoder);
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
                                  const void* buf,

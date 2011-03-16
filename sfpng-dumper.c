@@ -36,6 +36,8 @@ int main(int argc, char* argv[]) {
   printf("bit depth: %d  color type: %d\n",
          sfpng_decoder_get_depth(decoder),
          sfpng_decoder_get_color_type(decoder));
+  int interlaced = sfpng_decoder_get_interlaced(decoder);
+  printf("interlaced: %s\n", interlaced ? "yes" : "no");
 
   sfpng_decoder_free(decoder);
 

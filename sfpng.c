@@ -42,6 +42,7 @@ struct _sfpng_decoder {
   uint32_t height;
   int bit_depth;
   sfpng_color_type color_type;
+  int interlaced;
 
   /* Derived image properties, computed from above. */
   int stride;
@@ -278,6 +279,7 @@ static sfpng_status process_header_chunk(sfpng_decoder* decoder,
   int interlace = stream_read_byte(src);
   if (interlace != 0 && interlace != 1)
     return SFPNG_ERROR_BAD_ATTRIBUTE;
+  decoder->interlaced = interlace;
 
   return update_header_derived_values(decoder);
 }
@@ -396,6 +398,9 @@ int sfpng_decoder_get_depth(const sfpng_decoder* decoder) {
 }
 sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder) {
   return decoder->color_type;
+}
+int sfpng_decoder_get_interlaced(const sfpng_decoder* decoder) {
+  return decoder->interlaced;
 }
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,

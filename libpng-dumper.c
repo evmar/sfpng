@@ -19,9 +19,13 @@ int main(int argc, char* argv[]) {
   printf("bit depth: %d  color type: %d\n",
          png_get_bit_depth(png, info),
          png_get_color_type(png, info));
-  printf("interlaced: %s\n",
-         png_get_interlace_type(png, info) == PNG_INTERLACE_NONE
-         ? "no" : "yes");
+  int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
+  printf("interlaced: %s\n", interlaced ? "yes" : "no");
+
+  if (interlaced) {
+    /* XXX skip interlaced images for now. */
+    goto out;
+  }
 
   double gamma;
   if (png_get_gAMA(png, info, &gamma))
@@ -29,6 +33,7 @@ int main(int argc, char* argv[]) {
 
   png_byte** row_pointers = png_get_rows(png, info);
 
+ out:
   png_destroy_read_struct(&png, &info, NULL);
 
   return 0;
