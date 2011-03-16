@@ -86,11 +86,13 @@ int main(int argc, char* argv[]) {
         printf("alloc failed\n");
       else
         printf("invalid image\n");
-      return 1;
+      goto out;
     }
     if (len == 0)
       break;
   }
+
+ out:
   sfpng_decoder_free(decoder);
 
   return 0;
