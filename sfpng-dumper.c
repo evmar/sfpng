@@ -13,7 +13,7 @@ static void unknown_chunk(void* context, sfpng_decoder* decoder,
 }
 
 int main(int argc, char* argv[]) {
-  const char* file = argc == 2 ? argv[1] : "google.png";
+  const char* file = argv[1];
   FILE* f = fopen(file, "rb");
 
   sfpng_decoder* decoder = sfpng_decoder_new();
