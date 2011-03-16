@@ -1,5 +1,5 @@
 AC_INIT([sfpng], [1.0], [martine@danga.com])
-AM_INIT_AUTOMAKE([dist-bzip2 foreign silent-rules color-tests])
+AM_INIT_AUTOMAKE([dist-bzip2 foreign color-tests no-define])
 
 AM_SILENT_RULES([yes])
 
