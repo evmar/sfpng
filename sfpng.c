@@ -344,7 +344,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     return process_header_chunk(decoder, &src);
   case PNG_TAG('P', 'L', 'T', 'E'):
     /* 11.2.3 PLTE Palette */
-    if (decoder->chunk_len > 3*256 || decoder->chunk_len % 3 != 0)
+    if (src.len > 3*256 || src.len % 3 != 0)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     if (decoder->palette)
       return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple palettes? */
@@ -356,7 +356,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     break;
   case PNG_TAG('g', 'A', 'M', 'A'): {
     /* 11.3.3.2 gAMA Image gamma */
-    if (decoder->chunk_len != 4)
+    if (src.len != 4)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     decoder->gamma = stream_read_uint32(&src);
     /* Spec says: 0 gamma is meaningless and should be ignored. */
@@ -364,7 +364,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   }
   case PNG_TAG('p','H','Y','s'):
     /* 11.3.5.3 pHYs Physical pixel dimensions */
-    if (decoder->chunk_len != 9)
+    if (src.len != 9)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     /* Don't care. */
     break;
@@ -373,7 +373,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     break;
   case PNG_TAG('I', 'E', 'N', 'D'): {
     /* 11.2.5 IEND Image trailer */
-    if (decoder->chunk_len != 0)
+    if (src.len != 0)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     if (decoder->zlib_stream.next_in) {
       int status = inflateEnd(&decoder->zlib_stream);
@@ -387,8 +387,8 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     if (decoder->unknown_chunk_func) {
       decoder->unknown_chunk_func(/* XXX */ NULL, decoder,
                                   decoder->chunk_type,
-                                  decoder->chunk_buf,
-                                  decoder->chunk_len);
+                                  src.buf,
+                                  src.len);
     }
     break;
   }
