@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct _sfpng_decoder sfpng_decoder;
 
@@ -47,6 +48,9 @@ int sfpng_decoder_get_height(const sfpng_decoder* decoder);
 int sfpng_decoder_get_depth(const sfpng_decoder* decoder);
 sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder);
 int sfpng_decoder_get_interlaced(const sfpng_decoder* decoder);
+
+const uint8_t* sfpng_decoder_get_palette(const sfpng_decoder* decoder);
+const int sfpng_decoder_get_palette_entries(const sfpng_decoder* decoder);
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
                                  const void* buf,

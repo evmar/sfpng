@@ -43,6 +43,20 @@ int main(int argc, char* argv[]) {
   int interlaced = sfpng_decoder_get_interlaced(decoder);
   printf("interlaced: %s\n", interlaced ? "yes" : "no");
 
+  const uint8_t* palette = sfpng_decoder_get_palette(decoder);
+  if (palette) {
+    printf("palette:");
+    int entries = sfpng_decoder_get_palette_entries(decoder);
+    int i;
+    for (i = 0; i < entries * 3; i += 3) {
+      printf(" %02x%02x%02x",
+             palette[i],
+             palette[i+1],
+             palette[i+2]);
+    }
+    printf("\n");
+  }
+
   sfpng_decoder_free(decoder);
 
   return 0;

@@ -50,7 +50,7 @@ struct _sfpng_decoder {
 
   /* Palette, from PLTE. */
   uint8_t* palette;
-  int palette_length;
+  int palette_entries;
 
   /* IDAT decoding state. */
   z_stream zlib_stream;
@@ -350,6 +350,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     if (!decoder->palette)
       return SFPNG_ERROR_ALLOC_FAILED;
     memcpy(decoder->palette, src.buf, src.len);
+    decoder->palette_entries = src.len / 3;
     break;
   case PNG_TAG('g', 'A', 'M', 'A'): {
     /* 11.3.3.2 gAMA Image gamma */
@@ -416,6 +417,13 @@ sfpng_color_type sfpng_decoder_get_color_type(const sfpng_decoder* decoder) {
 }
 int sfpng_decoder_get_interlaced(const sfpng_decoder* decoder) {
   return decoder->interlaced;
+}
+
+const uint8_t* sfpng_decoder_get_palette(const sfpng_decoder* decoder) {
+  return decoder->palette;
+}
+const int sfpng_decoder_get_palette_entries(const sfpng_decoder* decoder) {
+  return decoder->palette_entries;
 }
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,

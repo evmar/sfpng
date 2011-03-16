@@ -39,9 +39,18 @@ int main(int argc, char* argv[]) {
   int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
   printf("interlaced: %s\n", interlaced ? "yes" : "no");
 
-  if (interlaced) {
-    /* XXX skip interlaced images for now. */
-    goto out;
+  png_color* palette;
+  int entries;
+  if (png_get_PLTE(png, info, &palette, &entries)) {
+    printf("palette:");
+    int i;
+    for (i = 0; i < entries; ++i) {
+      printf(" %02x%02x%02x",
+             palette[i].red,
+             palette[i].green,
+             palette[i].blue);
+    }
+    printf("\n");
   }
 
   /*double gamma;
