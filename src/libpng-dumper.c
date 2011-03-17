@@ -55,13 +55,7 @@ static void dump_png(png_structp png, png_infop info) {
   }
 }
 
-int main(int argc, char* argv[]) {
-  const char* filename = argv[1];
-  if (!filename) {
-    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
-    return 1;
-  }
-
+static int dump_file(const char* filename) {
   png_structp png;
   png_infop info = NULL;
 
@@ -84,13 +78,22 @@ int main(int argc, char* argv[]) {
 
   png_init_io(png, f);
   png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
-
   dump_png(png, info);
+  /*png_read_png(png, info, PNG_TRANSFORM_STRIP_16, NULL);
+    dump_png(png, info);*/
 
  out:
   if (f)
     fclose(f);
   png_destroy_read_struct(&png, &info, NULL);
+}
 
-  return 0;
+int main(int argc, char* argv[]) {
+  const char* filename = argv[1];
+  if (!filename) {
+    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
+    return 1;
+  }
+
+  return dump_file(filename);
 }
