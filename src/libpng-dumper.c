@@ -10,17 +10,7 @@ static void swallow_errors_function(png_structp png,
   longjmp(png_jmpbuf(png), 1);
 }
 
-static void dump_bytes(png_byte** rows, int stride, int height) {
-  int x, y;
-  for (y = 0; y < height; ++y) {
-    printf("%3d:", y);
-    for (x = 0; x < stride; ++x)
-      printf("%02x", (int)rows[y][x]);
-    printf("\n");
-  }
-}
-
-static void dump_png(png_structp png, png_infop info) {
+static void dump_png_metadata(png_structp png, png_infop info) {
   int width = png_get_image_width(png, info);
   int height = png_get_image_height(png, info);
   printf("dimensions: %dx%d\n", width, height);
@@ -47,15 +37,27 @@ static void dump_png(png_structp png, png_infop info) {
     }
     printf("\n");
   }
+}
 
-  if (!interlaced) {
-    png_byte** row_pointers = png_get_rows(png, info);
-    int stride = png_get_rowbytes(png, info);
-    dump_bytes(row_pointers, stride, height);
+static void dump_png_rows(png_structp png, png_infop info) {
+  int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
+  if (interlaced)
+    return;  /* XXX implement */
+
+  int height = png_get_image_height(png, info);
+  png_byte** rows = png_get_rows(png, info);
+  int stride = png_get_rowbytes(png, info);
+  int x, y;
+  for (y = 0; y < height; ++y) {
+    printf("%3d:", y);
+    for (x = 0; x < stride; ++x)
+      printf("%02x", (int)rows[y][x]);
+    printf("\n");
   }
 }
 
-static int dump_file(const char* filename) {
+static int dump_file(const char* filename, int transform) {
+  int ret = 1;
   png_structp png;
   png_infop info = NULL;
 
@@ -72,20 +74,32 @@ static int dump_file(const char* filename) {
   if (setjmp(png_jmpbuf(png))) {
     /* Error happened. */
     printf("invalid image\n");
+    ret = 1;
     goto out;
   }
   info = png_create_info_struct(png);
 
   png_init_io(png, f);
-  png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
-  dump_png(png, info);
-  /*png_read_png(png, info, PNG_TRANSFORM_STRIP_16, NULL);
-    dump_png(png, info);*/
+  if (transform)
+    png_read_png(png, info, PNG_TRANSFORM_STRIP_16, NULL);
+  else
+    png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
+  if (transform == 0) {
+    dump_png_metadata(png, info);
+    printf("raw data bytes:\n");
+  } else {
+    printf("decoded bytes:\n");
+  }
+  dump_png_rows(png, info);
+
+  ret = 0;
 
  out:
   if (f)
     fclose(f);
   png_destroy_read_struct(&png, &info, NULL);
+
+  return ret;
 }
 
 int main(int argc, char* argv[]) {
@@ -95,5 +109,11 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  return dump_file(filename);
+  int status = dump_file(filename, 0);
+  if (status != 0)
+    return status;
+
+  /*status = dump_file(filename, 1);*/
+
+  return status;
 }

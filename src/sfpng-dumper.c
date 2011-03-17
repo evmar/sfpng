@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+typedef struct {
+  int transform;
+} context;
+
 static void dump_attrs(sfpng_decoder* decoder) {
   printf("dimensions: %dx%d\n",
          sfpng_decoder_get_width(decoder),
@@ -37,8 +41,10 @@ static void row_func(void* context,
                      int row,
                      const void* buf,
                      size_t bytes) {
-  if (row == 0)
+  if (row == 0) {
     dump_attrs(decoder);
+    printf("raw data bytes:\n");
+  }
 
   if (sfpng_decoder_get_interlaced(decoder))
     return;
@@ -60,13 +66,8 @@ static void unknown_chunk(void* context, sfpng_decoder* decoder,
          (int)bytes);
 }
 
-int main(int argc, char* argv[]) {
-  const char* filename = argv[1];
-  if (!filename) {
-    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
-    return 1;
-  }
-
+static int dump_file(const char* filename, int transform) {
+  int ret = 1;
   FILE* f = fopen(filename, "rb");
   if (!f) {
     perror("fopen");
@@ -79,7 +80,7 @@ int main(int argc, char* argv[]) {
 
   char buf[4096];
   size_t len;
-  while ((len = fread(buf, 1, sizeof(buf), f)) >= 0) {
+  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
     sfpng_status status = sfpng_decoder_write(decoder, buf, len);
     if (status != SFPNG_SUCCESS) {
       if (status == SFPNG_ERROR_ALLOC_FAILED)
@@ -91,9 +92,28 @@ int main(int argc, char* argv[]) {
     if (len == 0)
       break;
   }
+  if (ferror(f)) {
+    perror("fread");
+    goto out;
+  }
+
+  ret = 0;
 
  out:
   sfpng_decoder_free(decoder);
+  return ret;
+}
 
-  return 0;
+int main(int argc, char* argv[]) {
+  const char* filename = argv[1];
+  if (!filename) {
+    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
+    return 1;
+  }
+
+  int status = dump_file(filename, 0);
+  if (status != 0)
+    return status;
+  /*return dump_file(filename, 1);*/
+  return status;
 }
