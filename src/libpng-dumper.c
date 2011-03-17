@@ -10,36 +10,7 @@ static void swallow_errors_function(png_structp png,
   longjmp(png_jmpbuf(png), 1);
 }
 
-int main(int argc, char* argv[]) {
-  const char* filename = argv[1];
-  if (!filename) {
-    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
-    return 1;
-  }
-
-  png_structp png;
-  png_infop info = NULL;
-
-  FILE* f = fopen(filename, "rb");
-  if (!f) {
-    perror("fopen");
-    return 1;
-  }
-
-  png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-                               NULL,
-                               swallow_errors_function,
-                               swallow_warnings_function);
-  if (setjmp(png_jmpbuf(png))) {
-    /* Error happened. */
-    printf("invalid image\n");
-    goto out;
-  }
-  info = png_create_info_struct(png);
-
-  png_init_io(png, f);
-  png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
-
+static void dump_png(png_structp png, png_infop info) {
   int width = png_get_image_width(png, info);
   int height = png_get_image_height(png, info);
   printf("dimensions: %dx%d\n", width, height);
@@ -78,8 +49,43 @@ int main(int argc, char* argv[]) {
       printf("\n");
     }
   }
+}
+
+int main(int argc, char* argv[]) {
+  const char* filename = argv[1];
+  if (!filename) {
+    fprintf(stderr, "usage: %s pngfile\n", argv[0]);
+    return 1;
+  }
+
+  png_structp png;
+  png_infop info = NULL;
+
+  FILE* f = fopen(filename, "rb");
+  if (!f) {
+    perror("fopen");
+    return 1;
+  }
+
+  png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
+                               NULL,
+                               swallow_errors_function,
+                               swallow_warnings_function);
+  if (setjmp(png_jmpbuf(png))) {
+    /* Error happened. */
+    printf("invalid image\n");
+    goto out;
+  }
+  info = png_create_info_struct(png);
+
+  png_init_io(png, f);
+  png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
+
+  dump_png(png, info);
 
  out:
+  if (f)
+    fclose(f);
   png_destroy_read_struct(&png, &info, NULL);
 
   return 0;
