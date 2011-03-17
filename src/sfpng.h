@@ -27,6 +27,9 @@ typedef enum {
 sfpng_decoder* sfpng_decoder_new();
 void sfpng_decoder_free(sfpng_decoder* decoder);
 
+void sfpng_decoder_set_context(sfpng_decoder* decoder, void* context);
+void* sfpng_decoder_get_context(sfpng_decoder* decoder);
+
 typedef void (*sfpng_row_func)(void* context,
                                sfpng_decoder* decoder,
                                int row,

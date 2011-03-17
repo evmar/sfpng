@@ -81,13 +81,13 @@ static int dump_file(const char* filename, int transform) {
 
   png_init_io(png, f);
   if (transform)
-    png_read_png(png, info, PNG_TRANSFORM_STRIP_16, NULL);
+    png_read_png(png, info, 0/*PNG_TRANSFORM_STRIP_16*/, NULL);
   else
     png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
   if (transform == 0) {
-    dump_png_metadata(png, info);
     printf("raw data bytes:\n");
   } else {
+    dump_png_metadata(png, info);
     printf("decoded bytes:\n");
   }
   dump_png_rows(png, info);
@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  int status = dump_file(filename, 0);
+  int status = dump_file(filename, 1);
   if (status != 0)
     return status;
 

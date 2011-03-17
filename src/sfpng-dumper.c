@@ -6,7 +6,7 @@
 
 typedef struct {
   int transform;
-} context;
+} decode_context;
 
 static void dump_attrs(sfpng_decoder* decoder) {
   printf("dimensions: %dx%d\n",
@@ -36,14 +36,20 @@ static void dump_attrs(sfpng_decoder* decoder) {
   }
 }
 
-static void row_func(void* context,
+static void row_func(void* void_context,
                      sfpng_decoder* decoder,
                      int row,
                      const void* buf,
                      size_t bytes) {
+  decode_context* context = (decode_context*)void_context;
+
   if (row == 0) {
-    dump_attrs(decoder);
-    printf("raw data bytes:\n");
+    if (context->transform) {
+      dump_attrs(decoder);
+      printf("decoded bytes:\n");
+    } else {
+      printf("raw data bytes:\n");
+    }
   }
 
   if (sfpng_decoder_get_interlaced(decoder))
@@ -74,7 +80,11 @@ static int dump_file(const char* filename, int transform) {
     return 1;
   }
 
+  decode_context context = {0};
+  context.transform = transform;
+
   sfpng_decoder* decoder = sfpng_decoder_new();
+  sfpng_decoder_set_context(decoder, &context);
   sfpng_decoder_set_row_func(decoder, row_func);
   sfpng_decoder_set_unknown_chunk_func(decoder, unknown_chunk);
 
@@ -111,7 +121,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  int status = dump_file(filename, 0);
+  int status = dump_file(filename, 1);
   if (status != 0)
     return status;
   /*return dump_file(filename, 1);*/

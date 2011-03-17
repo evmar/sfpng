@@ -23,6 +23,9 @@ typedef enum {
 struct _sfpng_decoder {
   crc_table crc_table;
 
+  /* User-specified context pointer. */
+  void* context;
+
   sfpng_row_func row_func;
   sfpng_unknown_chunk_func unknown_chunk_func;
 
@@ -109,6 +112,14 @@ sfpng_decoder* sfpng_decoder_new() {
   crc_init_table(decoder->crc_table);
 
   return decoder;
+}
+
+void sfpng_decoder_set_context(sfpng_decoder* decoder, void* context) {
+  decoder->context = context;
+}
+
+void* sfpng_decoder_get_context(sfpng_decoder* decoder) {
+  return decoder->context;
 }
 
 enum filter_type {
@@ -314,7 +325,7 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
       if (status != SFPNG_SUCCESS)
         return status;
       if (decoder->row_func) {
-        decoder->row_func(/* XXX */ NULL, decoder, decoder->scanline_row,
+        decoder->row_func(decoder->context, decoder, decoder->scanline_row,
                           decoder->scanline_buf + 1, decoder->stride);
       }
       ++decoder->scanline_row;
@@ -385,7 +396,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   }
   default:
     if (decoder->unknown_chunk_func) {
-      decoder->unknown_chunk_func(/* XXX */ NULL, decoder,
+      decoder->unknown_chunk_func(decoder->context, decoder,
                                   decoder->chunk_type,
                                   src.buf,
                                   src.len);
