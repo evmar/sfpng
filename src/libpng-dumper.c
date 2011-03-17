@@ -10,6 +10,16 @@ static void swallow_errors_function(png_structp png,
   longjmp(png_jmpbuf(png), 1);
 }
 
+static void dump_bytes(png_byte** rows, int stride, int height) {
+  int x, y;
+  for (y = 0; y < height; ++y) {
+    printf("%3d:", y);
+    for (x = 0; x < stride; ++x)
+      printf("%02x", (int)rows[y][x]);
+    printf("\n");
+  }
+}
+
 static void dump_png(png_structp png, png_infop info) {
   int width = png_get_image_width(png, info);
   int height = png_get_image_height(png, info);
@@ -41,13 +51,7 @@ static void dump_png(png_structp png, png_infop info) {
   if (!interlaced) {
     png_byte** row_pointers = png_get_rows(png, info);
     int stride = png_get_rowbytes(png, info);
-    int x, y;
-    for (y = 0; y < height; ++y) {
-      printf("%3d:", y);
-      for (x = 0; x < stride; ++x)
-        printf("%02x", (int)row_pointers[y][x]);
-      printf("\n");
-    }
+    dump_bytes(row_pointers, stride, height);
   }
 }
 
