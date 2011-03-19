@@ -63,3 +63,7 @@ float sfpng_decoder_get_gamma(const sfpng_decoder* decoder);
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
                                  const void* buf,
                                  size_t bytes);
+
+
+void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* row,
+                             uint8_t* out);

@@ -40,10 +40,6 @@ static void dump_png_metadata(png_structp png, png_infop info) {
 }
 
 static void dump_png_rows(png_structp png, png_infop info) {
-  int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
-  if (interlaced)
-    return;  /* XXX implement */
-
   int height = png_get_image_height(png, info);
   png_byte** rows = png_get_rows(png, info);
   int stride = png_get_rowbytes(png, info);
@@ -80,17 +76,25 @@ static int dump_file(const char* filename, int transform) {
   info = png_create_info_struct(png);
 
   png_init_io(png, f);
-  if (transform)
-    png_read_png(png, info, 0/*PNG_TRANSFORM_STRIP_16*/, NULL);
-  else
-    png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
-  if (transform == 0) {
-    printf("raw data bytes:\n");
-  } else {
-    dump_png_metadata(png, info);
+  if (transform) {
+    int flags = 0
+      | PNG_TRANSFORM_STRIP_16
+      | PNG_TRANSFORM_PACKING
+      | PNG_TRANSFORM_EXPAND
+      | PNG_TRANSFORM_GRAY_TO_RGB;
+    png_read_png(png, info, flags, NULL);
     printf("decoded bytes:\n");
+    int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
+    if (!interlaced && 0)
+      dump_png_rows(png, info);
+  } else {
+    png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
+    dump_png_metadata(png, info);
+    printf("raw data bytes:\n");
+    int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
+    if (!interlaced)
+      dump_png_rows(png, info);
   }
-  dump_png_rows(png, info);
 
   ret = 0;
 
@@ -109,11 +113,11 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  int status = dump_file(filename, 1);
+  int status = dump_file(filename, 0);
   if (status != 0)
     return status;
 
-  /*status = dump_file(filename, 1);*/
+  status = dump_file(filename, 1);
 
   return status;
 }

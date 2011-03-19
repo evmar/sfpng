@@ -556,3 +556,7 @@ void sfpng_decoder_free(sfpng_decoder* decoder) {
     free(decoder->palette);
   free(decoder);
 }
+
+void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* row,
+                             uint8_t* out) {
+}

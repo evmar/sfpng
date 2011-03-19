@@ -6,6 +6,8 @@
 
 typedef struct {
   int transform;
+  uint8_t* transform_buf;
+  int transform_len;
 } decode_context;
 
 static void dump_attrs(sfpng_decoder* decoder) {
@@ -42,6 +44,12 @@ static void row_func(sfpng_decoder* decoder,
                      int len) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
 
+  if (context->transform) {
+    sfpng_decoder_transform(decoder, buf, context->transform_buf);
+    buf = context->transform_buf;
+    len = context->transform_len;
+  }
+
   printf("%3d:", row);
   int i;
   for (i = 0; i < len; ++i)
@@ -53,15 +61,21 @@ static void info_func(sfpng_decoder* decoder) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
 
   if (context->transform) {
-    dump_attrs(decoder);
     printf("decoded bytes:\n");
+    /* XXX depends on what transform we're doing. */
+    context->transform_len = sfpng_decoder_get_width(decoder) * 3;
+    context->transform_buf = malloc(context->transform_len);
+    int depth = sfpng_decoder_get_depth(decoder);
+    if (!sfpng_decoder_get_interlaced(decoder) &&
+        0) {
+      sfpng_decoder_set_row_func(decoder, row_func);
+    }
   } else {
+    dump_attrs(decoder);
     printf("raw data bytes:\n");
+    if (!sfpng_decoder_get_interlaced(decoder))
+      sfpng_decoder_set_row_func(decoder, row_func);
   }
-
-  if (sfpng_decoder_get_interlaced(decoder))
-    return;
-  sfpng_decoder_set_row_func(decoder, row_func);
 }
 
 static void unknown_chunk(sfpng_decoder* decoder,
@@ -112,6 +126,8 @@ static int dump_file(const char* filename, int transform) {
 
  out:
   sfpng_decoder_free(decoder);
+  if (context.transform_buf)
+    free(context.transform_buf);
   return ret;
 }
 
@@ -122,9 +138,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  int status = dump_file(filename, 1);
+  int status = dump_file(filename, 0);
   if (status != 0)
     return status;
-  /*return dump_file(filename, 1);*/
+  status = dump_file(filename, 1);
   return status;
 }
