@@ -38,15 +38,14 @@ static void dump_attrs(sfpng_decoder* decoder) {
 
 static void row_func(sfpng_decoder* decoder,
                      int row,
-                     const void* buf,
-                     size_t bytes) {
+                     const uint8_t* buf,
+                     int len) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
 
-  const uint8_t* buf_bytes = buf;
   printf("%3d:", row);
   int i;
-  for (i = 0; i < bytes; ++i)
-    printf("%02x", buf_bytes[i]);
+  for (i = 0; i < len; ++i)
+    printf("%02x", buf[i]);
   printf("\n");
 }
 
@@ -67,11 +66,11 @@ static void info_func(sfpng_decoder* decoder) {
 
 static void unknown_chunk(sfpng_decoder* decoder,
                           char chunk_type[4],
-                          const void* buf, size_t bytes) {
+                          const uint8_t* buf, int len) {
   if (0)
   printf("unknown chunk: %c%c%c%c, length %d\n",
          chunk_type[0], chunk_type[1], chunk_type[2], chunk_type[3],
-         (int)bytes);
+         len);
 }
 
 static int dump_file(const char* filename, int transform) {

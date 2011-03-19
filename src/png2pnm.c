@@ -6,8 +6,8 @@
 
 static void row_func(sfpng_decoder* decoder,
                      int row,
-                     const void* buf,
-                     size_t bytes) {
+                     const uint8_t* buf,
+                     int len) {
   if (row == 0) {
     printf("P3\n");
     printf("%d %d\n",
@@ -16,20 +16,19 @@ static void row_func(sfpng_decoder* decoder,
     printf("255\n");
   }
 
-  const uint8_t* buf_bytes = buf;
   int x;
   switch (sfpng_decoder_get_color_type(decoder)) {
   case SFPNG_COLOR_TRUECOLOR:
-    for (x = 0; x < bytes; x += 3)
-      printf("%d %d %d ", buf_bytes[x], buf_bytes[x+1], buf_bytes[x+2]);
+    for (x = 0; x < len; x += 3)
+      printf("%d %d %d ", buf[x], buf[x+1], buf[x+2]);
     break;
   case SFPNG_COLOR_TRUECOLOR_ALPHA:
-    for (x = 0; x < bytes; x += 4) {
-      int a = buf_bytes[x+3];
+    for (x = 0; x < len; x += 4) {
+      int a = buf[x+3];
       printf("%d %d %d ",
-             buf_bytes[x] * a / 255,
-             buf_bytes[x+1] * a / 255,
-             buf_bytes[x+2] * a / 255);
+             buf[x] * a / 255,
+             buf[x+1] * a / 255,
+             buf[x+2] * a / 255);
     }
     break;
   default:
