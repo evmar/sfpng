@@ -325,7 +325,7 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
       if (status != SFPNG_SUCCESS)
         return status;
       if (decoder->row_func) {
-        decoder->row_func(decoder->context, decoder, decoder->scanline_row,
+        decoder->row_func(decoder, decoder->scanline_row,
                           decoder->scanline_buf + 1, decoder->stride);
       }
       ++decoder->scanline_row;
@@ -396,7 +396,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   }
   default:
     if (decoder->unknown_chunk_func) {
-      decoder->unknown_chunk_func(decoder->context, decoder,
+      decoder->unknown_chunk_func(decoder,
                                   decoder->chunk_type,
                                   src.buf,
                                   src.len);

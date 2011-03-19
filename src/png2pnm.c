@@ -4,8 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-static void row_func(void* context,
-                     sfpng_decoder* decoder,
+static void row_func(sfpng_decoder* decoder,
                      int row,
                      const void* buf,
                      size_t bytes) {

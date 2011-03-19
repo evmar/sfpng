@@ -36,12 +36,11 @@ static void dump_attrs(sfpng_decoder* decoder) {
   }
 }
 
-static void row_func(void* void_context,
-                     sfpng_decoder* decoder,
+static void row_func(sfpng_decoder* decoder,
                      int row,
                      const void* buf,
                      size_t bytes) {
-  decode_context* context = (decode_context*)void_context;
+  decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
 
   if (row == 0) {
     if (context->transform) {
@@ -63,7 +62,7 @@ static void row_func(void* void_context,
   printf("\n");
 }
 
-static void unknown_chunk(void* context, sfpng_decoder* decoder,
+static void unknown_chunk(sfpng_decoder* decoder,
                           char chunk_type[4],
                           const void* buf, size_t bytes) {
   if (0)

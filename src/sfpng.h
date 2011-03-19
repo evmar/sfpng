@@ -30,16 +30,14 @@ void sfpng_decoder_free(sfpng_decoder* decoder);
 void sfpng_decoder_set_context(sfpng_decoder* decoder, void* context);
 void* sfpng_decoder_get_context(sfpng_decoder* decoder);
 
-typedef void (*sfpng_row_func)(void* context,
-                               sfpng_decoder* decoder,
+typedef void (*sfpng_row_func)(sfpng_decoder* decoder,
                                int row,
                                const void* buf,
                                size_t bytes);
 void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
                                 sfpng_row_func row_func);
 
-typedef void (*sfpng_unknown_chunk_func)(void* context,
-                                         sfpng_decoder* decoder,
+typedef void (*sfpng_unknown_chunk_func)(sfpng_decoder* decoder,
                                          char chunk_type[4],
                                          const void* buf,
                                          size_t bytes);
