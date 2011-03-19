@@ -26,6 +26,7 @@ struct _sfpng_decoder {
   /* User-specified context pointer. */
   void* context;
 
+  sfpng_info_func info_func;
   sfpng_row_func row_func;
   sfpng_unknown_chunk_func unknown_chunk_func;
 
@@ -324,6 +325,13 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
       sfpng_status status = reconstruct_filter(decoder);
       if (status != SFPNG_SUCCESS)
         return status;
+
+      if (decoder->scanline_row == 0 && decoder->info_func) {
+        /* 5.6 Chunk ordering says that all metadata chunks (other than comments)
+           must appear before IDAT.  So we know that we're past all the metadata
+           at this point. */
+        decoder->info_func(decoder);
+      }
       if (decoder->row_func) {
         decoder->row_func(decoder, decoder->scanline_row,
                           decoder->scanline_buf + 1, decoder->stride);
@@ -406,6 +414,10 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   return SFPNG_SUCCESS;
 }
 
+void sfpng_decoder_set_info_func(sfpng_decoder* decoder,
+                                 sfpng_info_func info_func) {
+  decoder->info_func = info_func;
+}
 void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
                                 sfpng_row_func row_func) {
   decoder->row_func = row_func;

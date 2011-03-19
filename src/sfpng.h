@@ -30,6 +30,10 @@ void sfpng_decoder_free(sfpng_decoder* decoder);
 void sfpng_decoder_set_context(sfpng_decoder* decoder, void* context);
 void* sfpng_decoder_get_context(sfpng_decoder* decoder);
 
+typedef void (*sfpng_info_func)(sfpng_decoder* decoder);
+void sfpng_decoder_set_info_func(sfpng_decoder* decoder,
+                                 sfpng_info_func info_func);
+
 typedef void (*sfpng_row_func)(sfpng_decoder* decoder,
                                int row,
                                const void* buf,

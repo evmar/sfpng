@@ -11,8 +11,8 @@ for f in testsuite/*/*.png; do
     else
         exit=$?
         echo 'FAIL'
-        diff -u <($valgrind ./libpng-dumper $f 2>&1) \
-                <($valgrind ./sfpng-dumper $f 2>&1)
+        diff -U5 <($valgrind ./libpng-dumper $f 2>&1) \
+                 <($valgrind ./sfpng-dumper $f 2>&1)
         exit 1
     fi
 done

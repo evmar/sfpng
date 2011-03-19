@@ -42,24 +42,27 @@ static void row_func(sfpng_decoder* decoder,
                      size_t bytes) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
 
-  if (row == 0) {
-    if (context->transform) {
-      dump_attrs(decoder);
-      printf("decoded bytes:\n");
-    } else {
-      printf("raw data bytes:\n");
-    }
-  }
-
-  if (sfpng_decoder_get_interlaced(decoder))
-    return;
-
   const uint8_t* buf_bytes = buf;
   printf("%3d:", row);
   int i;
   for (i = 0; i < bytes; ++i)
     printf("%02x", buf_bytes[i]);
   printf("\n");
+}
+
+static void info_func(sfpng_decoder* decoder) {
+  decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
+
+  if (context->transform) {
+    dump_attrs(decoder);
+    printf("decoded bytes:\n");
+  } else {
+    printf("raw data bytes:\n");
+  }
+
+  if (sfpng_decoder_get_interlaced(decoder))
+    return;
+  sfpng_decoder_set_row_func(decoder, row_func);
 }
 
 static void unknown_chunk(sfpng_decoder* decoder,
@@ -84,7 +87,7 @@ static int dump_file(const char* filename, int transform) {
 
   sfpng_decoder* decoder = sfpng_decoder_new();
   sfpng_decoder_set_context(decoder, &context);
-  sfpng_decoder_set_row_func(decoder, row_func);
+  sfpng_decoder_set_info_func(decoder, info_func);
   sfpng_decoder_set_unknown_chunk_func(decoder, unknown_chunk);
 
   char buf[4096];
