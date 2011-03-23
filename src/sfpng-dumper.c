@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "dumper.h"
+
 typedef struct {
   int transform;
   uint8_t* transform_buf;
@@ -14,9 +16,16 @@ static void dump_attrs(sfpng_decoder* decoder) {
   printf("dimensions: %dx%d\n",
          sfpng_decoder_get_width(decoder),
          sfpng_decoder_get_height(decoder));
-  printf("bit depth: %d  color type: %d\n",
+  const char* color_type_name = "unknown";
+  sfpng_color_type color_type = sfpng_decoder_get_color_type(decoder);
+  if (color_type >= 0 && color_type <= 6 &&
+      dumper_color_type_names[color_type]) {
+    color_type_name = dumper_color_type_names[color_type];
+  }
+  printf("bit depth: %d  color type: %s\n",
          sfpng_decoder_get_depth(decoder),
-         sfpng_decoder_get_color_type(decoder));
+         color_type_name);
+
   int interlaced = sfpng_decoder_get_interlaced(decoder);
   printf("interlaced: %s\n", interlaced ? "yes" : "no");
 

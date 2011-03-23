@@ -1,5 +1,7 @@
 #include <libpng/png.h>
 
+#include "dumper.h"
+
 static void swallow_warnings_function(png_structp png,
                                       png_const_charp msg) {
   /* Ignore. */
@@ -14,9 +16,15 @@ static void dump_png_metadata(png_structp png, png_infop info) {
   int width = png_get_image_width(png, info);
   int height = png_get_image_height(png, info);
   printf("dimensions: %dx%d\n", width, height);
-  printf("bit depth: %d  color type: %d\n",
+  const char* color_type_name = "unknown";
+  int color_type = png_get_color_type(png, info);
+  if (color_type >= 0 && color_type <= 6 &&
+      dumper_color_type_names[color_type]) {
+    color_type_name = dumper_color_type_names[color_type];
+  }
+  printf("bit depth: %d  color type: %s\n",
          png_get_bit_depth(png, info),
-         png_get_color_type(png, info));
+         color_type_name);
   int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
   printf("interlaced: %s\n", interlaced ? "yes" : "no");
 
