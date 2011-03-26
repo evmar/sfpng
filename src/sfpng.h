@@ -17,12 +17,8 @@ typedef enum {
   SFPNG_ERROR_BAD_FILTER,
 } sfpng_status;
 
-enum {
-  SFPNG_COLOR_MASK_PALETTE = 1 << 0,
-  SFPNG_COLOR_MASK_COLOR   = 1 << 1,
-  SFPNG_COLOR_MASK_ALPHA   = 1 << 2,
-};
-
+/* Possible types of color spaces used by png files.
+   These values come from the png spec and are not going to change. */
 typedef enum {
   SFPNG_COLOR_GRAYSCALE       = 0,
   SFPNG_COLOR_TRUECOLOR       = 2,
@@ -30,6 +26,14 @@ typedef enum {
   SFPNG_COLOR_GRAYSCALE_ALPHA = 4,
   SFPNG_COLOR_TRUECOLOR_ALPHA = 6,
 } sfpng_color_type;
+
+/* Masks for testing bits in the color type.
+   These values come from the png spec and are not going to change. */
+enum {
+  SFPNG_COLOR_MASK_PALETTE = 1 << 0,  /* Set if image is paletted. */
+  SFPNG_COLOR_MASK_COLOR   = 1 << 1,  /* Set if image is color (not gray). */
+  SFPNG_COLOR_MASK_ALPHA   = 1 << 2,  /* Set if image has alpha channel. */
+};
 
 sfpng_decoder* sfpng_decoder_new();
 void sfpng_decoder_free(sfpng_decoder* decoder);
