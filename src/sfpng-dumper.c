@@ -71,14 +71,11 @@ static void info_func(sfpng_decoder* decoder) {
 
   if (context->transform) {
     printf("decoded bytes:\n");
-    /* XXX depends on what transform we're doing. */
-    context->transform_len = sfpng_decoder_get_width(decoder) * 3;
+    context->transform_len = sfpng_decoder_get_width(decoder) * 4;
     context->transform_buf = malloc(context->transform_len);
     int depth = sfpng_decoder_get_depth(decoder);
-    if (!sfpng_decoder_get_interlaced(decoder) &&
-        0) {
+    if (!sfpng_decoder_get_interlaced(decoder))
       sfpng_decoder_set_row_func(decoder, row_func);
-    }
   } else {
     dump_attrs(decoder);
     printf("raw data bytes:\n");
@@ -90,10 +87,14 @@ static void info_func(sfpng_decoder* decoder) {
 static void unknown_chunk(sfpng_decoder* decoder,
                           char chunk_type[4],
                           const uint8_t* buf, int len) {
-  if (0)
+  return;
   printf("unknown chunk: %c%c%c%c, length %d\n",
          chunk_type[0], chunk_type[1], chunk_type[2], chunk_type[3],
          len);
+  int i;
+  for (i = 0; i < len; ++i)
+    printf(" %02x", buf[i]);
+  printf("\n");
 }
 
 static int dump_file(const char* filename, int transform) {

@@ -6,6 +6,7 @@ typedef struct _sfpng_decoder sfpng_decoder;
 typedef enum {
   SFPNG_SUCCESS = 0,
   SFPNG_ERROR_ALLOC_FAILED,
+  SFPNG_ERROR_NOT_IMPLEMENTED,
 
   /* All of these errors are related to errors in the file content.
      I'm considering just merging these together. */

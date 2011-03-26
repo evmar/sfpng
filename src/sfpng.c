@@ -20,6 +20,18 @@ typedef enum {
   STATE_CHUNK_CRC,
 } decode_state;
 
+typedef struct {
+  uint8_t* bytes;
+  int entries;
+} palette;
+
+typedef struct {
+  /* Depending on image type: either a list of trans palette entries,
+     an rgb value, or a grayscale value. */
+  palette palette;
+  int r, g, b, value;
+} trans;
+
 struct _sfpng_decoder {
   crc_table crc_table;
 
@@ -53,10 +65,14 @@ struct _sfpng_decoder {
   int bytes_per_pixel;
 
   /* Palette, from PLTE. */
-  uint8_t* palette;
-  int palette_entries;
+  palette palette;
+
   /* Gamma, from gAMA. */
   uint32_t gamma;
+
+  /* Transparency info, from tRNS. */
+  int has_trans;
+  trans trans;
 
   /* IDAT decoding state. */
   z_stream zlib_stream;
@@ -79,6 +95,12 @@ static uint32_t stream_read_uint32(stream* stream) {
   memcpy(&i, stream->buf, 4);
   stream_consume(stream, 4);
   return ntohl(i);
+}
+static uint16_t stream_read_uint16(stream* stream) {
+  uint16_t i;
+  memcpy(&i, stream->buf, 2);
+  stream_consume(stream, 2);
+  return ntohs(i);
 }
 static uint8_t stream_read_byte(stream* stream) {
   uint8_t i = stream->buf[0];
@@ -302,6 +324,47 @@ static sfpng_status process_header_chunk(sfpng_decoder* decoder,
   return update_header_derived_values(decoder);
 }
 
+static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
+                                       stream* src) {
+  if (!decoder->bit_depth)
+    return SFPNG_ERROR_BAD_ATTRIBUTE; /* XXX handle chunk ordering deps */
+
+  if (decoder->color_type == SFPNG_COLOR_INDEXED) {
+    if (decoder->trans.palette.bytes)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple trns chunks? */
+    decoder->trans.palette.entries = src->len;
+    decoder->trans.palette.bytes = malloc(src->len);
+    if (!decoder->trans.palette.bytes)
+      return SFPNG_ERROR_ALLOC_FAILED;
+    memcpy(decoder->trans.palette.bytes, src->buf, src->len);
+  } else {
+    /* 16-bit color value; either rgb or grayscale. */
+    if (decoder->color_type & SFPNG_COLOR_MASK_COLOR) {
+      if (src->len != 6)
+        return SFPNG_ERROR_BAD_ATTRIBUTE;
+      decoder->trans.r = stream_read_uint16(src);
+      decoder->trans.g = stream_read_uint16(src);
+      decoder->trans.b = stream_read_uint16(src);
+
+      if (decoder->bit_depth == 16) {
+        decoder->trans.r >>= 8;
+        decoder->trans.g >>= 8;
+        decoder->trans.b >>= 8;
+      }
+    } else {
+      if (src->len != 2)
+        return SFPNG_ERROR_BAD_ATTRIBUTE;
+      decoder->trans.value = stream_read_uint16(src);
+      if (decoder->bit_depth == 16)
+        decoder->trans.value >>= 8;
+    }
+  }
+
+  decoder->has_trans = 1;
+
+  return SFPNG_SUCCESS;
+}
+
 static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
                                              stream* src) {
   int needs_init = !decoder->zlib_stream.next_in;
@@ -365,13 +428,13 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* 11.2.3 PLTE Palette */
     if (src.len > 3*256 || src.len % 3 != 0)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    if (decoder->palette)
+    if (decoder->palette.bytes)
       return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple palettes? */
-    decoder->palette = malloc(src.len);
-    if (!decoder->palette)
+    decoder->palette.bytes = malloc(src.len);
+    if (!decoder->palette.bytes)
       return SFPNG_ERROR_ALLOC_FAILED;
-    memcpy(decoder->palette, src.buf, src.len);
-    decoder->palette_entries = src.len / 3;
+    memcpy(decoder->palette.bytes, src.buf, src.len);
+    decoder->palette.entries = src.len / 3;
     break;
   case PNG_TAG('g', 'A', 'M', 'A'): {
     /* 11.3.3.2 gAMA Image gamma */
@@ -388,6 +451,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* Don't care. */
     break;
   case PNG_TAG('I','D','A','T'):
+    /* XXX check return value */
     process_image_data_chunk(decoder, &src);
     break;
   case PNG_TAG('I', 'E', 'N', 'D'): {
@@ -402,6 +466,8 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     }
     break;
   }
+  case PNG_TAG('t','R','N','S'):
+    return process_trns_chunk(decoder, &src);
   default:
     if (decoder->unknown_chunk_func) {
       decoder->unknown_chunk_func(decoder,
@@ -445,10 +511,10 @@ int sfpng_decoder_get_interlaced(const sfpng_decoder* decoder) {
 }
 
 const uint8_t* sfpng_decoder_get_palette(const sfpng_decoder* decoder) {
-  return decoder->palette;
+  return decoder->palette.bytes;
 }
 int sfpng_decoder_get_palette_entries(const sfpng_decoder* decoder) {
-  return decoder->palette_entries;
+  return decoder->palette.entries;
 }
 
 int sfpng_decoder_has_gamma(const sfpng_decoder* decoder) {
@@ -552,11 +618,88 @@ void sfpng_decoder_free(sfpng_decoder* decoder) {
     int status = inflateEnd(&decoder->zlib_stream);
     /* We don't care about a bad status at this point. */
   }
-  if (decoder->palette)
-    free(decoder->palette);
+  if (decoder->palette.bytes)
+    free(decoder->palette.bytes);
+  if (decoder->trans.palette.bytes)
+    free(decoder->trans.palette.bytes);
   free(decoder);
 }
 
-void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* row,
+void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
                              uint8_t* out) {
+  const int depth = decoder->bit_depth;
+  int in_len_pixels = decoder->width;
+  int bit = 8 - depth;
+
+  const int mask = (1 << depth) - 1;
+
+  while (in_len_pixels) {
+    uint8_t r, g, b, a = 0xFF;
+    uint8_t value;
+    if (depth < 8) {
+      if (bit < 0) {
+        bit = 8 - depth;
+        ++in;
+      }
+      value = (*in >> bit) & mask;
+      r = g = b = value * (255 / mask);
+      bit -= depth;
+    } else if (depth == 8) {
+      if (decoder->color_type == SFPNG_COLOR_TRUECOLOR ||
+          decoder->color_type == SFPNG_COLOR_TRUECOLOR_ALPHA) {
+        r = *in++;
+        g = *in++;
+        b = *in++;
+      } else {
+        value = r = g = b = *in++;
+      }
+      if (decoder->color_type & SFPNG_COLOR_MASK_ALPHA)
+        a = *in++;
+    } else if (depth == 16) {
+      if (decoder->color_type & SFPNG_COLOR_MASK_COLOR) {
+        r = *in++; ++in;
+        g = *in++; ++in;
+        b = *in++; ++in;
+      } else {
+        value = r = g = b = *in++; ++in;
+      }
+      if (decoder->color_type & SFPNG_COLOR_MASK_ALPHA) {
+        a = *in++; ++in;
+      }
+    }
+
+    if (decoder->color_type == SFPNG_COLOR_INDEXED) {
+      /* XXX verify palette indexing at palette load time */
+      if (value > decoder->palette.entries)
+        return;
+      const uint8_t* palette = decoder->palette.bytes + (3 * value);
+      r = palette[0];
+      g = palette[1];
+      b = palette[2];
+    }
+
+    if (decoder->has_trans) {
+      if (decoder->color_type == SFPNG_COLOR_INDEXED) {
+        int i;
+        for (i = 0; i < decoder->trans.palette.entries; ++i)
+          if (value == decoder->trans.palette.bytes[i])
+            a = 0;
+      } else if (decoder->color_type & SFPNG_COLOR_MASK_COLOR) {
+        if (r == decoder->trans.r &&
+            g == decoder->trans.g &&
+            b == decoder->trans.b) {
+          a = 0;
+        }
+      } else {
+        if (value == decoder->trans.value)
+          a = 0;
+      }
+    }
+
+    *out++ = r;
+    *out++ = g;
+    *out++ = b;
+    *out++ = a;
+    --in_len_pixels;
+  }
 }

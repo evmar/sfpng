@@ -85,6 +85,8 @@ static int dump_file(const char* filename, int transform) {
 
   png_init_io(png, f);
   if (transform) {
+    /* Always dump as RGBA. */
+    png_set_add_alpha(png, 0xFF, PNG_FILLER_AFTER);
     int flags = 0
       | PNG_TRANSFORM_STRIP_16
       | PNG_TRANSFORM_PACKING
@@ -93,7 +95,7 @@ static int dump_file(const char* filename, int transform) {
     png_read_png(png, info, flags, NULL);
     printf("decoded bytes:\n");
     int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
-    if (!interlaced && 0)
+    if (!interlaced)
       dump_png_rows(png, info);
   } else {
     png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
