@@ -359,18 +359,10 @@ static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
       decoder->trans.r = stream_read_uint16(src);
       decoder->trans.g = stream_read_uint16(src);
       decoder->trans.b = stream_read_uint16(src);
-
-      if (decoder->bit_depth == 16) {
-        decoder->trans.r >>= 8;
-        decoder->trans.g >>= 8;
-        decoder->trans.b >>= 8;
-      }
     } else {
       if (src->len != 2)
         return SFPNG_ERROR_BAD_ATTRIBUTE;
       decoder->trans.value = stream_read_uint16(src);
-      if (decoder->bit_depth == 16)
-        decoder->trans.value >>= 8;
     }
   }
 
@@ -651,8 +643,8 @@ void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
   const int mask = (1 << depth) - 1;
 
   while (in_len_pixels) {
-    uint8_t r, g, b, a = 0xFF;
-    uint8_t value;
+    int r, g, b, a = 0xFFFF;
+    int value;
     if (depth < 8) {
       if (bit < 0) {
         bit = 8 - depth;
@@ -674,14 +666,16 @@ void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
         a = *in++;
     } else if (depth == 16) {
       if (decoder->color_type & SFPNG_COLOR_MASK_COLOR) {
-        r = *in++; ++in;
-        g = *in++; ++in;
-        b = *in++; ++in;
+        r = in[0] << 8 | in[1]; in += 2;
+        g = in[0] << 8 | in[1]; in += 2;
+        b = in[0] << 8 | in[1]; in += 2;
       } else {
-        value = r = g = b = *in++; ++in;
+        value = r = g = b = in[0] << 8 | in[1];
+        in += 2;
       }
       if (decoder->color_type & SFPNG_COLOR_MASK_ALPHA) {
-        a = *in++; ++in;
+        a = in[0] << 8 | in[1];
+        in += 2;
       }
     }
 
@@ -711,6 +705,13 @@ void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
         if (value == decoder->trans.value)
           a = 0;
       }
+    }
+
+    if (decoder->bit_depth == 16) {
+      r >>= 8;
+      g >>= 8;
+      b >>= 8;
+      a >>= 8;
     }
 
     *out++ = r;
