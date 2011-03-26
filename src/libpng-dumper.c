@@ -101,10 +101,11 @@ static int dump_file(const char* filename, int transform) {
   } else {
     png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
     dump_png_metadata(png, info);
-    printf("raw data bytes:\n");
     int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
-    if (!interlaced)
+    if (!interlaced) {
+      printf("raw data bytes:\n");
       dump_png_rows(png, info);
+    }
   }
 
   ret = 0;

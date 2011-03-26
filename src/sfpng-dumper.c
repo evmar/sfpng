@@ -79,9 +79,10 @@ static void info_func(sfpng_decoder* decoder) {
     sfpng_decoder_set_row_func(decoder, row_func);
   } else {
     dump_attrs(decoder);
+    if (sfpng_decoder_get_interlaced(decoder))
+      return;
     printf("raw data bytes:\n");
-    if (!sfpng_decoder_get_interlaced(decoder))
-      sfpng_decoder_set_row_func(decoder, row_func);
+    sfpng_decoder_set_row_func(decoder, row_func);
   }
 }
 
