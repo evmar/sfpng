@@ -93,10 +93,11 @@ static int dump_file(const char* filename, int transform) {
       | PNG_TRANSFORM_EXPAND
       | PNG_TRANSFORM_GRAY_TO_RGB;
     png_read_png(png, info, flags, NULL);
-    printf("decoded bytes:\n");
     int interlaced = png_get_interlace_type(png, info) != PNG_INTERLACE_NONE;
-    if (!interlaced)
+    if (!interlaced) {
+      printf("decoded bytes:\n");
       dump_png_rows(png, info);
+    }
   } else {
     png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
     dump_png_metadata(png, info);

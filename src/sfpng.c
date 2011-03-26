@@ -451,9 +451,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* Don't care. */
     break;
   case PNG_TAG('I','D','A','T'):
-    /* XXX check return value */
-    process_image_data_chunk(decoder, &src);
-    break;
+    return process_image_data_chunk(decoder, &src);
   case PNG_TAG('I', 'E', 'N', 'D'): {
     /* 11.2.5 IEND Image trailer */
     if (src.len != 0)

@@ -70,12 +70,13 @@ static void info_func(sfpng_decoder* decoder) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
 
   if (context->transform) {
+    if (sfpng_decoder_get_interlaced(decoder))
+      return;
     printf("decoded bytes:\n");
     context->transform_len = sfpng_decoder_get_width(decoder) * 4;
     context->transform_buf = malloc(context->transform_len);
     int depth = sfpng_decoder_get_depth(decoder);
-    if (!sfpng_decoder_get_interlaced(decoder))
-      sfpng_decoder_set_row_func(decoder, row_func);
+    sfpng_decoder_set_row_func(decoder, row_func);
   } else {
     dump_attrs(decoder);
     printf("raw data bytes:\n");
@@ -120,6 +121,9 @@ static int dump_file(const char* filename, int transform) {
     if (status != SFPNG_SUCCESS) {
       if (status == SFPNG_ERROR_ALLOC_FAILED)
         printf("alloc failed\n");
+      else if (status == SFPNG_ERROR_BAD_FILTER &&
+               sfpng_decoder_get_interlaced(decoder))
+        /* XXX ignore unimpl interlaced bits for now */;
       else
         printf("invalid image\n");
       goto out;
