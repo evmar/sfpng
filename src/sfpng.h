@@ -37,7 +37,7 @@ typedef enum {
    These values come from the png spec and are not going to change. */
 enum {
   SFPNG_COLOR_MASK_PALETTE = 1 << 0,  /* Set if image is paletted. */
-  SFPNG_COLOR_MASK_COLOR   = 1 << 1,  /* Set if image is color (not gray). */
+  SFPNG_COLOR_MASK_COLOR   = 1 << 1,  /* Set if image is not grayscale. */
   SFPNG_COLOR_MASK_ALPHA   = 1 << 2,  /* Set if image has alpha channel. */
 };
 
