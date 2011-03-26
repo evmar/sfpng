@@ -1,6 +1,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(__GNUC__)
+#define SFPNG_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define SFPNG_WARN_UNUSED_RESULT
+#endif
+
 typedef struct _sfpng_decoder sfpng_decoder;
 
 typedef enum {
@@ -73,7 +79,7 @@ float sfpng_decoder_get_gamma(const sfpng_decoder* decoder);
 
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
                                  const void* buf,
-                                 size_t bytes);
+                                 size_t bytes) SFPNG_WARN_UNUSED_RESULT;
 
 
 void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* row,

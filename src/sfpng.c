@@ -166,6 +166,8 @@ static int paeth(int a, int b, int c) {
     return c;
 }
 
+static sfpng_status reconstruct_filter(sfpng_decoder* decoder)
+  SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
   /* 9.2 Filter types for filter method 0 */
   int filter_type = decoder->scanline_buf[0];
@@ -211,6 +213,10 @@ static sfpng_status reconstruct_filter(sfpng_decoder* decoder) {
 
 static sfpng_status parse_color(sfpng_decoder* decoder,
                                 int bit_depth,
+                                int color_type)
+  SFPNG_WARN_UNUSED_RESULT;
+static sfpng_status parse_color(sfpng_decoder* decoder,
+                                int bit_depth,
                                 int color_type) {
   switch (color_type) {
   case SFPNG_COLOR_GRAYSCALE: {
@@ -252,6 +258,8 @@ static sfpng_status parse_color(sfpng_decoder* decoder,
 }
 
 
+static sfpng_status update_header_derived_values(sfpng_decoder* decoder)
+  SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status update_header_derived_values(sfpng_decoder* decoder) {
   int scanline_bits;
   switch (decoder->color_type) {
@@ -290,6 +298,9 @@ static sfpng_status update_header_derived_values(sfpng_decoder* decoder) {
 }
 
 static sfpng_status process_header_chunk(sfpng_decoder* decoder,
+                                         stream* src)
+  SFPNG_WARN_UNUSED_RESULT;
+static sfpng_status process_header_chunk(sfpng_decoder* decoder,
                                          stream* src) {
   /* 11.2.2 IHDR Image header */
   if (decoder->chunk_len != 13)
@@ -324,6 +335,9 @@ static sfpng_status process_header_chunk(sfpng_decoder* decoder,
   return update_header_derived_values(decoder);
 }
 
+static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
+                                       stream* src)
+  SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
                                        stream* src) {
   if (!decoder->bit_depth)
@@ -365,6 +379,9 @@ static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
   return SFPNG_SUCCESS;
 }
 
+static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
+                                             stream* src)
+  SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
                                              stream* src) {
   int needs_init = !decoder->zlib_stream.next_in;
@@ -414,6 +431,8 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
   return SFPNG_SUCCESS;
 }
 
+static sfpng_status process_chunk(sfpng_decoder* decoder)
+  SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_chunk(sfpng_decoder* decoder) {
   uint32_t type = PNG_TAG(decoder->chunk_type[0],
                           decoder->chunk_type[1],
