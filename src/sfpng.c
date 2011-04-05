@@ -457,6 +457,29 @@ static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
   return SFPNG_SUCCESS;
 }
 
+static sfpng_status process_text_chunk(sfpng_decoder* decoder,
+                                       int compressed,
+                                       stream* src)
+  SFPNG_WARN_UNUSED_RESULT;
+static sfpng_status process_text_chunk(sfpng_decoder* decoder,
+                                       int compressed,
+                                       stream* src) {
+  if (!decoder->text_func)
+    return SFPNG_SUCCESS;
+  if (compressed)
+    /* TODO: return SFPNG_ERROR_NOT_IMPLEMENTED; */
+    return SFPNG_SUCCESS;
+
+  uint8_t* nul = memchr(src->buf, 0, src->len);
+  if (!nul || nul + 1 >= src->buf + src->len)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+
+  decoder->text_func(decoder, (const char*)src->buf, nul + 1,
+                     src->len - (nul - src->buf + 1));
+
+  return SFPNG_SUCCESS;
+}
+
 static sfpng_status process_chunk(sfpng_decoder* decoder)
   SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_chunk(sfpng_decoder* decoder) {
@@ -501,12 +524,10 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     break;
   case PNG_TAG('t', 'E', 'X', 't'):
     /* 11.3.4.3 tEXt Textual data */
-    /* TODO: expose text data. */
-    break;
+    return process_text_chunk(decoder, 0, &src);
   case PNG_TAG('z', 'T', 'X', 't'):
     /* 11.3.4.4 xTXt Compressed textual data */
-    /* TODO: expose text data. */
-    break;
+    return process_text_chunk(decoder, 1, &src);
   case PNG_TAG('b','K','G','D'):
     /* 11.3.5.1 bKGD Background color */
     /* This is the "preferred" background color; when part of a larger

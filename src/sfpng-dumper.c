@@ -86,6 +86,22 @@ static void info_func(sfpng_decoder* decoder) {
   }
 }
 
+static void text_func(sfpng_decoder* decoder,
+                      const char* keyword,
+                      const uint8_t* text,
+                      int text_len) {
+  return;  /* TODO: implement for libpng as well. */
+  printf("comment: %s\n  ", keyword);
+  int i;
+  for (i = 0; i < text_len; ++i) {
+    if (0x20 <= text[i] && text[i] < 0x7F)
+      printf("%c", text[i]);
+    else
+      printf("\\x%02x", text[i]);
+  }
+  printf("\n");
+}
+
 static void unknown_chunk(sfpng_decoder* decoder,
                           char chunk_type[4],
                           const uint8_t* buf, int len) {
@@ -113,6 +129,7 @@ static int dump_file(const char* filename, int transform) {
   sfpng_decoder* decoder = sfpng_decoder_new();
   sfpng_decoder_set_context(decoder, &context);
   sfpng_decoder_set_info_func(decoder, info_func);
+  sfpng_decoder_set_text_func(decoder, text_func);
   sfpng_decoder_set_unknown_chunk_func(decoder, unknown_chunk);
 
   char buf[4096];

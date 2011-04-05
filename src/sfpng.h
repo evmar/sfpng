@@ -60,7 +60,8 @@ void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
 
 typedef void (*sfpng_text_func)(sfpng_decoder* decoder,
                                 const char* keyword,
-                                const char* text);
+                                const uint8_t* text,
+                                int text_len);
 void sfpng_decoder_set_text_func(sfpng_decoder* decoder,
                                  sfpng_text_func text_func);
 
