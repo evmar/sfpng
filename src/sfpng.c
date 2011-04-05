@@ -352,42 +352,6 @@ static sfpng_status process_palette_chunk(sfpng_decoder* decoder,
   return SFPNG_SUCCESS;
 }
 
-static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
-                                       stream* src)
-  SFPNG_WARN_UNUSED_RESULT;
-static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
-                                       stream* src) {
-  if (!decoder->bit_depth)
-    return SFPNG_ERROR_BAD_ATTRIBUTE; /* XXX handle chunk ordering deps */
-
-  if (decoder->color_type == SFPNG_COLOR_INDEXED) {
-    if (decoder->trans.palette.bytes)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple trns chunks? */
-    decoder->trans.palette.entries = src->len;
-    decoder->trans.palette.bytes = malloc(src->len);
-    if (!decoder->trans.palette.bytes)
-      return SFPNG_ERROR_ALLOC_FAILED;
-    memcpy(decoder->trans.palette.bytes, src->buf, src->len);
-  } else {
-    /* 16-bit color value; either rgb or grayscale. */
-    if (decoder->color_type & SFPNG_COLOR_MASK_COLOR) {
-      if (src->len != 6)
-        return SFPNG_ERROR_BAD_ATTRIBUTE;
-      decoder->trans.r = stream_read_uint16(src);
-      decoder->trans.g = stream_read_uint16(src);
-      decoder->trans.b = stream_read_uint16(src);
-    } else {
-      if (src->len != 2)
-        return SFPNG_ERROR_BAD_ATTRIBUTE;
-      decoder->trans.value = stream_read_uint16(src);
-    }
-  }
-
-  decoder->has_trans = 1;
-
-  return SFPNG_SUCCESS;
-}
-
 static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
                                              stream* src)
   SFPNG_WARN_UNUSED_RESULT;
@@ -437,6 +401,42 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
       decoder->zlib_stream.avail_out = 1 + decoder->stride;
     }
   }
+  return SFPNG_SUCCESS;
+}
+
+static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
+                                       stream* src)
+  SFPNG_WARN_UNUSED_RESULT;
+static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
+                                       stream* src) {
+  if (!decoder->bit_depth)
+    return SFPNG_ERROR_BAD_ATTRIBUTE; /* XXX handle chunk ordering deps */
+
+  if (decoder->color_type == SFPNG_COLOR_INDEXED) {
+    if (decoder->trans.palette.bytes)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple trns chunks? */
+    decoder->trans.palette.entries = src->len;
+    decoder->trans.palette.bytes = malloc(src->len);
+    if (!decoder->trans.palette.bytes)
+      return SFPNG_ERROR_ALLOC_FAILED;
+    memcpy(decoder->trans.palette.bytes, src->buf, src->len);
+  } else {
+    /* 16-bit color value; either rgb or grayscale. */
+    if (decoder->color_type & SFPNG_COLOR_MASK_COLOR) {
+      if (src->len != 6)
+        return SFPNG_ERROR_BAD_ATTRIBUTE;
+      decoder->trans.r = stream_read_uint16(src);
+      decoder->trans.g = stream_read_uint16(src);
+      decoder->trans.b = stream_read_uint16(src);
+    } else {
+      if (src->len != 2)
+        return SFPNG_ERROR_BAD_ATTRIBUTE;
+      decoder->trans.value = stream_read_uint16(src);
+    }
+  }
+
+  decoder->has_trans = 1;
+
   return SFPNG_SUCCESS;
 }
 
