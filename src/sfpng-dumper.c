@@ -52,6 +52,13 @@ static void row_func(sfpng_decoder* decoder,
                      const uint8_t* buf,
                      int len) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
+  if (row == 0) {
+    if (context->transform) {
+      printf("decoded bytes:\n");
+    } else {
+      printf("raw data bytes:\n");
+    }
+  }
 
   if (context->transform) {
     sfpng_decoder_transform(decoder, buf, context->transform_buf);
@@ -72,7 +79,6 @@ static void info_func(sfpng_decoder* decoder) {
   if (context->transform) {
     if (sfpng_decoder_get_interlaced(decoder))
       return;
-    printf("decoded bytes:\n");
     context->transform_len = sfpng_decoder_get_width(decoder) * 4;
     context->transform_buf = malloc(context->transform_len);
     int depth = sfpng_decoder_get_depth(decoder);
@@ -81,7 +87,6 @@ static void info_func(sfpng_decoder* decoder) {
     dump_attrs(decoder);
     if (sfpng_decoder_get_interlaced(decoder))
       return;
-    printf("raw data bytes:\n");
     sfpng_decoder_set_row_func(decoder, row_func);
   }
 }
