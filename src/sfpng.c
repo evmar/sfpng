@@ -463,6 +463,9 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     }
     break;
   }
+  case PNG_TAG('t','R','N','S'):
+    /* 11.3.2.1 tRNS Transparency */
+    return process_trns_chunk(decoder, &src);
   case PNG_TAG('c', 'H', 'R', 'M'):
     /* 11.3.3.1 cHRM Primary chromaticities and white point */
     /* This is related to gamma/white balance info. */
@@ -509,8 +512,6 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* 11.3.6.1 tIME Image last-modification time */
     /* Don't care.  TODO: expose this info to users?  */
     break;
-  case PNG_TAG('t','R','N','S'):
-    return process_trns_chunk(decoder, &src);
   default:
     if (decoder->unknown_chunk_func) {
       decoder->unknown_chunk_func(decoder,
