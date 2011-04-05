@@ -434,6 +434,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
 
   switch (type) {
   case PNG_TAG('I','H','D','R'):
+    /* 11.2.2 IHDR Image header */
     return process_header_chunk(decoder, &src);
   case PNG_TAG('P', 'L', 'T', 'E'):
     /* 11.2.3 PLTE Palette */
@@ -447,6 +448,21 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     memcpy(decoder->palette.bytes, src.buf, src.len);
     decoder->palette.entries = src.len / 3;
     break;
+  case PNG_TAG('I','D','A','T'):
+    /* 11.2.4 IDAT Image data */
+    return process_image_data_chunk(decoder, &src);
+  case PNG_TAG('I', 'E', 'N', 'D'): {
+    /* 11.2.5 IEND Image trailer */
+    if (src.len != 0)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    if (decoder->zlib_stream.next_in) {
+      int status = inflateEnd(&decoder->zlib_stream);
+      decoder->zlib_stream.next_in = NULL;
+      if (status != Z_OK)
+        return SFPNG_ERROR_ZLIB_ERROR;
+    }
+    break;
+  }
   case PNG_TAG('c', 'H', 'R', 'M'):
     /* 11.3.3.1 cHRM Primary chromaticities and white point */
     /* This is related to gamma/white balance info. */
@@ -493,20 +509,6 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* 11.3.6.1 tIME Image last-modification time */
     /* Don't care.  TODO: expose this info to users?  */
     break;
-  case PNG_TAG('I','D','A','T'):
-    return process_image_data_chunk(decoder, &src);
-  case PNG_TAG('I', 'E', 'N', 'D'): {
-    /* 11.2.5 IEND Image trailer */
-    if (src.len != 0)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-    if (decoder->zlib_stream.next_in) {
-      int status = inflateEnd(&decoder->zlib_stream);
-      decoder->zlib_stream.next_in = NULL;
-      if (status != Z_OK)
-        return SFPNG_ERROR_ZLIB_ERROR;
-    }
-    break;
-  }
   case PNG_TAG('t','R','N','S'):
     return process_trns_chunk(decoder, &src);
   default:
