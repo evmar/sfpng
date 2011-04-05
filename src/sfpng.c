@@ -487,14 +487,13 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* This is related to gamma/white balance info. */
     /* Don't care.  TODO: expose this info to users? */
     break;
-  case PNG_TAG('g', 'A', 'M', 'A'): {
+  case PNG_TAG('g', 'A', 'M', 'A'):
     /* 11.3.3.2 gAMA Image gamma */
     if (src.len != 4)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
     decoder->gamma = stream_read_uint32(&src);
     /* Spec says: 0 gamma is meaningless and should be ignored. */
     break;
-  }
   case PNG_TAG('s','B','I','T'):
     /* 11.3.3.4 sBIT Significant bits */
     /* This is how many bits of the color info is significant. */
