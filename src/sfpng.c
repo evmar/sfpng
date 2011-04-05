@@ -335,6 +335,23 @@ static sfpng_status process_header_chunk(sfpng_decoder* decoder,
   return update_header_derived_values(decoder);
 }
 
+static sfpng_status process_palette_chunk(sfpng_decoder* decoder,
+                                          stream* src)
+  SFPNG_WARN_UNUSED_RESULT;
+static sfpng_status process_palette_chunk(sfpng_decoder* decoder,
+                                          stream* src) {
+  if (src->len > 3*256 || src->len % 3 != 0)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+  if (decoder->palette.bytes)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple palettes? */
+  decoder->palette.bytes = malloc(src->len);
+  if (!decoder->palette.bytes)
+    return SFPNG_ERROR_ALLOC_FAILED;
+  memcpy(decoder->palette.bytes, src->buf, src->len);
+  decoder->palette.entries = src->len / 3;
+  return SFPNG_SUCCESS;
+}
+
 static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
                                        stream* src)
   SFPNG_WARN_UNUSED_RESULT;
@@ -438,16 +455,7 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     return process_header_chunk(decoder, &src);
   case PNG_TAG('P', 'L', 'T', 'E'):
     /* 11.2.3 PLTE Palette */
-    if (src.len > 3*256 || src.len % 3 != 0)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-    if (decoder->palette.bytes)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Multiple palettes? */
-    decoder->palette.bytes = malloc(src.len);
-    if (!decoder->palette.bytes)
-      return SFPNG_ERROR_ALLOC_FAILED;
-    memcpy(decoder->palette.bytes, src.buf, src.len);
-    decoder->palette.entries = src.len / 3;
-    break;
+    return process_palette_chunk(decoder, &src);
   case PNG_TAG('I','D','A','T'):
     /* 11.2.4 IDAT Image data */
     return process_image_data_chunk(decoder, &src);
