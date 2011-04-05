@@ -404,6 +404,22 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
   return SFPNG_SUCCESS;
 }
 
+static sfpng_status process_iend_chunk(sfpng_decoder* decoder,
+                                       stream* src)
+  SFPNG_WARN_UNUSED_RESULT;
+static sfpng_status process_iend_chunk(sfpng_decoder* decoder,
+                                       stream* src) {
+  if (src->len != 0)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+  if (decoder->zlib_stream.next_in) {
+    int status = inflateEnd(&decoder->zlib_stream);
+    decoder->zlib_stream.next_in = NULL;
+    if (status != Z_OK)
+      return SFPNG_ERROR_ZLIB_ERROR;
+  }
+  return SFPNG_SUCCESS;
+}
+
 static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
                                        stream* src)
   SFPNG_WARN_UNUSED_RESULT;
@@ -459,18 +475,9 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   case PNG_TAG('I','D','A','T'):
     /* 11.2.4 IDAT Image data */
     return process_image_data_chunk(decoder, &src);
-  case PNG_TAG('I', 'E', 'N', 'D'): {
+  case PNG_TAG('I', 'E', 'N', 'D'):
     /* 11.2.5 IEND Image trailer */
-    if (src.len != 0)
-      return SFPNG_ERROR_BAD_ATTRIBUTE;
-    if (decoder->zlib_stream.next_in) {
-      int status = inflateEnd(&decoder->zlib_stream);
-      decoder->zlib_stream.next_in = NULL;
-      if (status != Z_OK)
-        return SFPNG_ERROR_ZLIB_ERROR;
-    }
-    break;
-  }
+    return process_iend_chunk(decoder, &src);
   case PNG_TAG('t','R','N','S'):
     /* 11.3.2.1 tRNS Transparency */
     return process_trns_chunk(decoder, &src);
