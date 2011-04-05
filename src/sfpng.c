@@ -40,6 +40,7 @@ struct _sfpng_decoder {
 
   sfpng_info_func info_func;
   sfpng_row_func row_func;
+  sfpng_text_func text_func;
   sfpng_unknown_chunk_func unknown_chunk_func;
 
   /* Header decoding state. */
@@ -546,6 +547,10 @@ void sfpng_decoder_set_info_func(sfpng_decoder* decoder,
 void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
                                 sfpng_row_func row_func) {
   decoder->row_func = row_func;
+}
+void sfpng_decoder_set_text_func(sfpng_decoder* decoder,
+                                 sfpng_text_func text_func) {
+  decoder->text_func = text_func;
 }
 void sfpng_decoder_set_unknown_chunk_func(sfpng_decoder* decoder,
                                           sfpng_unknown_chunk_func chunk_func) {

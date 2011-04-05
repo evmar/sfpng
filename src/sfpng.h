@@ -58,6 +58,12 @@ typedef void (*sfpng_row_func)(sfpng_decoder* decoder,
 void sfpng_decoder_set_row_func(sfpng_decoder* decoder,
                                 sfpng_row_func row_func);
 
+typedef void (*sfpng_text_func)(sfpng_decoder* decoder,
+                                const char* keyword,
+                                const char* text);
+void sfpng_decoder_set_text_func(sfpng_decoder* decoder,
+                                 sfpng_text_func text_func);
+
 typedef void (*sfpng_unknown_chunk_func)(sfpng_decoder* decoder,
                                          char chunk_type[4],
                                          const uint8_t* buf,
