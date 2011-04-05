@@ -455,11 +455,15 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* Spec says: 0 gamma is meaningless and should be ignored. */
     break;
   }
+  case PNG_TAG('s','B','I','T'):
+    /* 11.3.3.4 sBIT Significant bits */
+    /* Don't care.  TODO: expose this info to users? */
+    break;
   case PNG_TAG('p','H','Y','s'):
     /* 11.3.5.3 pHYs Physical pixel dimensions */
     if (src.len != 9)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
-    /* Don't care. */
+    /* Don't care.  TODO: expose this info to users?  */
     break;
   case PNG_TAG('I','D','A','T'):
     return process_image_data_chunk(decoder, &src);
