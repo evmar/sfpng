@@ -457,7 +457,14 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
   }
   case PNG_TAG('s','B','I','T'):
     /* 11.3.3.4 sBIT Significant bits */
+    /* This is how many bits of the color info is significant. */
     /* Don't care.  TODO: expose this info to users? */
+    break;
+  case PNG_TAG('b','K','G','D'):
+    /* 11.3.5.1 bKGD Background color */
+    /* This is the "preferred" background color; when part of a larger
+       document, it should be ignored when rendering. */
+    /* Don't care.  TODO: expose this info to users?  */
     break;
   case PNG_TAG('p','H','Y','s'):
     /* 11.3.5.3 pHYs Physical pixel dimensions */
