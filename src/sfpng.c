@@ -465,6 +465,14 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     /* This is how many bits of the color info is significant. */
     /* Don't care.  TODO: expose this info to users? */
     break;
+  case PNG_TAG('t', 'E', 'X', 't'):
+    /* 11.3.4.3 tEXt Textual data */
+    /* TODO: expose text data. */
+    break;
+  case PNG_TAG('z', 'T', 'X', 't'):
+    /* 11.3.4.4 xTXt Compressed textual data */
+    /* TODO: expose text data. */
+    break;
   case PNG_TAG('b','K','G','D'):
     /* 11.3.5.1 bKGD Background color */
     /* This is the "preferred" background color; when part of a larger
