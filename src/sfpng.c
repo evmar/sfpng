@@ -447,6 +447,11 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
     memcpy(decoder->palette.bytes, src.buf, src.len);
     decoder->palette.entries = src.len / 3;
     break;
+  case PNG_TAG('c', 'H', 'R', 'M'):
+    /* 11.3.3.1 cHRM Primary chromaticities and white point */
+    /* This is related to gamma/white balance info. */
+    /* Don't care.  TODO: expose this info to users? */
+    break;
   case PNG_TAG('g', 'A', 'M', 'A'): {
     /* 11.3.3.2 gAMA Image gamma */
     if (src.len != 4)
@@ -466,10 +471,18 @@ static sfpng_status process_chunk(sfpng_decoder* decoder) {
        document, it should be ignored when rendering. */
     /* Don't care.  TODO: expose this info to users?  */
     break;
+  case PNG_TAG('h','I','S','T'):
+    /* 11.3.5.2 hIST Image histogram */
+    /* Don't care.  TODO: expose this info to users?  */
+    break;
   case PNG_TAG('p','H','Y','s'):
     /* 11.3.5.3 pHYs Physical pixel dimensions */
     if (src.len != 9)
       return SFPNG_ERROR_BAD_ATTRIBUTE;
+    /* Don't care.  TODO: expose this info to users?  */
+    break;
+  case PNG_TAG('t','I','M','E'):
+    /* 11.3.6.1 tIME Image last-modification time */
     /* Don't care.  TODO: expose this info to users?  */
     break;
   case PNG_TAG('I','D','A','T'):
