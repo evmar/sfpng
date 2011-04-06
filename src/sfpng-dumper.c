@@ -3,13 +3,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "dumper.h"
+
+/* Because libpng only exposes comments as an attribute to fetch off an image
+   post-decode, we always dump comments last.  This requires saving off
+   comments as they're extracted, in the following linked-list structure. */
+typedef struct _comment {
+  char* key;
+  char* val;
+  int val_len;
+  struct _comment* next;
+} comment;
 
 typedef struct {
   int transform;
   uint8_t* transform_buf;
   int transform_len;
+
+  comment* comments;
 } decode_context;
 
 static void dump_attrs(sfpng_decoder* decoder) {
@@ -95,7 +108,22 @@ static void text_func(sfpng_decoder* decoder,
                       const char* keyword,
                       const uint8_t* text,
                       int text_len) {
-  dump_comment(keyword, (const char*)text, text_len);
+  comment* c = malloc(sizeof(*c));
+  c->key = strdup(keyword);
+  c->val = malloc(text_len);
+  memcpy(c->val, text, text_len);
+  c->val_len = text_len;
+  c->next = NULL;
+
+  decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
+  if (!context->comments) {
+    context->comments = c;
+  } else {
+    comment* p;
+    for (p = context->comments; p->next; p = p->next)
+      ;
+    p->next = c;
+  }
 }
 
 static void unknown_chunk(sfpng_decoder* decoder,
@@ -150,12 +178,27 @@ static int dump_file(const char* filename, int transform) {
     goto out;
   }
 
+  comment* c;
+  if (transform) {
+    for (c = context.comments; c; c = c->next)
+      dump_comment(c->key, c->val, c->val_len);
+  }
+
   ret = 0;
 
  out:
   sfpng_decoder_free(decoder);
   if (context.transform_buf)
     free(context.transform_buf);
+
+  comment* c_next = NULL;
+  for (c = context.comments; c; c = c_next) {
+    free(c->key);
+    free(c->val);
+    c_next = c->next;
+    free(c);
+  }
+
   return ret;
 }
 
