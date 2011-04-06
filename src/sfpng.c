@@ -457,6 +457,45 @@ static sfpng_status process_trns_chunk(sfpng_decoder* decoder,
   return SFPNG_SUCCESS;
 }
 
+/* zlib-inflate a buffer, mallocing a buffer for the output. */
+static sfpng_status inflate_fully(stream* src, uint8_t** out_buf, int* out_len) {
+  int ret = SFPNG_SUCCESS;
+  uint8_t buf[8 << 10];
+  z_stream zlib = {};
+
+  *out_buf = NULL;
+  *out_len = 0;
+  zlib.next_in = (uint8_t*)src->buf;
+  zlib.avail_in = src->len;
+  if (inflateInit(&zlib) != Z_OK)
+    return SFPNG_ERROR_ZLIB_ERROR;
+  zlib.next_out = buf;
+  zlib.avail_out = sizeof(buf);
+
+  while (zlib.avail_in) {
+    int status = inflate(&zlib, Z_SYNC_FLUSH);
+    if (status != Z_OK && status != Z_STREAM_END) {
+      ret = SFPNG_ERROR_ZLIB_ERROR;
+      goto out;
+    }
+    if (zlib.avail_out == 0) {
+      /* XXX ran out of buffer.
+         TODO: grow a buffer manually?  ugh.
+       */
+      ret = SFPNG_ERROR_NOT_IMPLEMENTED;
+      goto out;
+    }
+  }
+
+  *out_len = zlib.total_out;
+  *out_buf = malloc(*out_len);
+  memcpy(*out_buf, buf, *out_len);
+
+ out:
+  inflateEnd(&zlib);
+  return ret;
+}
+
 static sfpng_status process_text_chunk(sfpng_decoder* decoder,
                                        int compressed,
                                        stream* src)
@@ -466,16 +505,37 @@ static sfpng_status process_text_chunk(sfpng_decoder* decoder,
                                        stream* src) {
   if (!decoder->text_func)
     return SFPNG_SUCCESS;
-  if (compressed)
-    /* TODO: return SFPNG_ERROR_NOT_IMPLEMENTED; */
-    return SFPNG_SUCCESS;
 
   uint8_t* nul = memchr(src->buf, 0, src->len);
   if (!nul || nul + 1 >= src->buf + src->len)
     return SFPNG_ERROR_BAD_ATTRIBUTE;
 
-  decoder->text_func(decoder, (const char*)src->buf, nul + 1,
-                     src->len - (nul - src->buf + 1));
+  const char* keyword = (const char*)src->buf;
+  stream_consume(src, nul - src->buf + 1);
+
+  if (compressed) {
+    if (src->len < 1)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+    int compression = stream_read_byte(src);
+    if (compression != 0)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
+
+    /* 10.3 Other uses of compression */
+    /* "Unlike the image data, [ztxt] datastreams are not split across
+       chunks; each such chunk contains an independent zlib
+       datastream" */
+
+    uint8_t* buf;
+    int len;
+    sfpng_status status = inflate_fully(src, &buf, &len);
+    if (status != SFPNG_SUCCESS)
+      return status;
+    decoder->text_func(decoder, keyword, buf, len);
+    free(buf);
+    return SFPNG_SUCCESS;
+  } else {
+    decoder->text_func(decoder, keyword, src->buf, src->len);
+  }
 
   return SFPNG_SUCCESS;
 }
