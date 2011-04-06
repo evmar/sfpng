@@ -95,16 +95,7 @@ static void text_func(sfpng_decoder* decoder,
                       const char* keyword,
                       const uint8_t* text,
                       int text_len) {
-  return;  /* TODO: implement for libpng as well. */
-  printf("comment: %s\n  ", keyword);
-  int i;
-  for (i = 0; i < text_len; ++i) {
-    if (0x20 <= text[i] && text[i] < 0x7F)
-      printf("%c", text[i]);
-    else
-      printf("\\x%02x", text[i]);
-  }
-  printf("\n");
+  dump_comment(keyword, (const char*)text, text_len);
 }
 
 static void unknown_chunk(sfpng_decoder* decoder,

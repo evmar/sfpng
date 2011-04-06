@@ -98,6 +98,12 @@ static int dump_file(const char* filename, int transform) {
       printf("decoded bytes:\n");
       dump_png_rows(png, info);
     }
+
+    png_text* texts = NULL;
+    int comments = png_get_text(png, info, &texts, NULL);
+    int i;
+    for (i = 0; i < comments; ++i)
+      dump_comment(texts[i].key, texts[i].text, texts[i].text_length);
   } else {
     png_read_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
     dump_png_metadata(png, info);
