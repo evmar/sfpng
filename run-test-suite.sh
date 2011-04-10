@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ ! -x libpng-dumper -o ! -x sfpng-dumper ]; then
+    echo 'run "make check" to build and run the test suite.'
+    exit 1
+fi
+
 valgrind="valgrind --leak-check=full --quiet --error-exitcode=2"
 valgrind=
 
