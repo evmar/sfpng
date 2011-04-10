@@ -778,8 +778,8 @@ void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
   const int mask = (1 << depth) - 1;
 
   while (in_len_pixels) {
-    int r, g, b, a = 0xFFFF;
-    int value;
+    int r = 0, g = 0, b = 0, a = 0xFFFF;
+    int value = 0;
     if (depth < 8) {
       if (bit < 0) {
         bit = 8 - depth;
