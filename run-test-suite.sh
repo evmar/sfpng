@@ -12,7 +12,13 @@ sfpng_output=$(mktemp sfpng.XXXXXXXXXX)
 libpng_output=$(mktemp libpng.XXXXXXXXXX)
 trap "rm -f $sfpng_output $libpng_output" EXIT
 
-for f in testsuite/*/*.png; do
+inputs=${@:-testsuite/*/*.png}
+for f in $inputs; do
+    if [ ! -f $f ]; then
+        echo "$f: not readable"
+        exit 1
+    fi
+
     echo -n "$f: "
     $valgrind ./libpng-dumper $f 2>&1 > $libpng_output
     $valgrind ./sfpng-dumper $f 2>&1 > $sfpng_output
