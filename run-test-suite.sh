@@ -5,8 +5,11 @@ if [ ! -x libpng-dumper -o ! -x sfpng-dumper ]; then
     exit 1
 fi
 
-valgrind="valgrind --leak-check=full --quiet --error-exitcode=2"
 valgrind=
+if [ "$1" == "--valgrind" ]; then
+    valgrind="valgrind --leak-check=full --quiet --error-exitcode=2"
+    shift
+fi
 
 sfpng_output=$(mktemp sfpng.XXXXXXXXXX)
 libpng_output=$(mktemp libpng.XXXXXXXXXX)
