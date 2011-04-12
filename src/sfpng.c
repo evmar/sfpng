@@ -20,6 +20,15 @@ typedef enum {
   STATE_CHUNK_CRC,
 } decode_state;
 
+/* 5.6 Chunk ordering */
+typedef enum {
+  CHUNK_STATE_NONE,
+  CHUNK_STATE_IHDR,
+  CHUNK_STATE_PLTE,
+  CHUNK_STATE_IDAT,
+  CHUNK_STATE_IEND,
+} decode_chunk_state;
+
 typedef struct {
   uint8_t* bytes;
   int entries;
@@ -49,6 +58,7 @@ struct _sfpng_decoder {
   int in_len;
 
   /* Chunk decoding state. */
+  decode_chunk_state chunk_state;
   int chunk_len;
   char chunk_type[4];
   int chunk_ofs;
@@ -304,6 +314,8 @@ static sfpng_status process_header_chunk(sfpng_decoder* decoder,
 static sfpng_status process_header_chunk(sfpng_decoder* decoder,
                                          stream* src) {
   /* 11.2.2 IHDR Image header */
+  if (decoder->chunk_state != CHUNK_STATE_NONE)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Must be the first chunk. */
   if (decoder->chunk_len != 13)
     return SFPNG_ERROR_BAD_ATTRIBUTE;
 
@@ -333,6 +345,8 @@ static sfpng_status process_header_chunk(sfpng_decoder* decoder,
     return SFPNG_ERROR_BAD_ATTRIBUTE;
   decoder->interlaced = interlace;
 
+  decoder->chunk_state = CHUNK_STATE_IHDR;
+
   return update_header_derived_values(decoder);
 }
 
@@ -341,6 +355,8 @@ static sfpng_status process_palette_chunk(sfpng_decoder* decoder,
   SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_palette_chunk(sfpng_decoder* decoder,
                                           stream* src) {
+  if (decoder->chunk_state != CHUNK_STATE_IHDR)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Must be after IHDR. */
   if (src->len > 3*256 || src->len % 3 != 0)
     return SFPNG_ERROR_BAD_ATTRIBUTE;
   if (decoder->palette.bytes)
@@ -350,6 +366,7 @@ static sfpng_status process_palette_chunk(sfpng_decoder* decoder,
     return SFPNG_ERROR_ALLOC_FAILED;
   memcpy(decoder->palette.bytes, src->buf, src->len);
   decoder->palette.entries = src->len / 3;
+  decoder->chunk_state = CHUNK_STATE_PLTE;
   return SFPNG_SUCCESS;
 }
 
@@ -358,6 +375,11 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
   SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
                                              stream* src) {
+  if (!(decoder->chunk_state >= CHUNK_STATE_IHDR ||
+        decoder->chunk_state <= CHUNK_STATE_IDAT)) {
+    return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Must be after headers. */
+  }
+
   int needs_init = !decoder->zlib_stream.next_in;
 
   decoder->zlib_stream.next_in = (uint8_t*)src->buf;
@@ -402,6 +424,9 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
       decoder->zlib_stream.avail_out = 1 + decoder->stride;
     }
   }
+
+  //decoder->chunk_state = CHUNK_STATE_IDAT;
+
   return SFPNG_SUCCESS;
 }
 
@@ -410,6 +435,9 @@ static sfpng_status process_iend_chunk(sfpng_decoder* decoder,
   SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_iend_chunk(sfpng_decoder* decoder,
                                        stream* src) {
+  if (decoder->chunk_state != CHUNK_STATE_IDAT)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Must be after image data. */
+
   if (src->len != 0)
     return SFPNG_ERROR_BAD_ATTRIBUTE;
   if (decoder->zlib_stream.next_in) {
@@ -418,6 +446,9 @@ static sfpng_status process_iend_chunk(sfpng_decoder* decoder,
     if (status != Z_OK)
       return SFPNG_ERROR_ZLIB_ERROR;
   }
+
+  decoder->chunk_state = CHUNK_STATE_IEND;
+
   return SFPNG_SUCCESS;
 }
 
