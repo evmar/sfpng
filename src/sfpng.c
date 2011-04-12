@@ -425,7 +425,7 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
     }
   }
 
-  //decoder->chunk_state = CHUNK_STATE_IDAT;
+  decoder->chunk_state = CHUNK_STATE_IDAT;
 
   return SFPNG_SUCCESS;
 }
@@ -735,8 +735,8 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
           decoder->chunk_buf = realloc(decoder->chunk_buf, chunk_len);
         if (!decoder->chunk_buf)
           return SFPNG_ERROR_ALLOC_FAILED;
-        decoder->chunk_len = chunk_len;
       }
+      decoder->chunk_len = chunk_len;
 
       decoder->state = STATE_CHUNK_DATA;
       decoder->chunk_ofs = 0;
