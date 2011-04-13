@@ -26,7 +26,7 @@ def png_invalid_bad_crc():
     return pngforge.sig() + pngforge.chunk('ABCD', crc=1)
 
 def png_invalid_short_idat():
-    """Create the smallest valid image."""
+    """Create a valid image with a short IDAT."""
     return (pngforge.sig() + pngforge.ihdr(1, 1) +
             pngforge.chunk('IDAT', '') +
             pngforge.iend())
