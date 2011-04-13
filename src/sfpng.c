@@ -701,7 +701,7 @@ float sfpng_decoder_get_gamma(const sfpng_decoder* decoder) {
 
 static sfpng_status finish(sfpng_decoder* decoder) {
   if (decoder->chunk_state != CHUNK_STATE_IEND)
-    return SFPNG_ERROR_BAD_ATTRIBUTE;
+    return SFPNG_ERROR_EOF;
   return SFPNG_SUCCESS;
 }
 
@@ -734,9 +734,12 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       if (decoder->in_len < 8)
         return SFPNG_SUCCESS;
 
-      uint32_t chunk_len;
+      int32_t chunk_len;
       memcpy(&chunk_len, decoder->in_buf, 4);
       chunk_len = ntohl(chunk_len);
+      if (chunk_len < 0)
+        return SFPNG_ERROR_BAD_ATTRIBUTE;
+
       memcpy(&decoder->chunk_type, decoder->in_buf + 4, 4);
 
       if (chunk_len) {

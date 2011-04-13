@@ -13,8 +13,13 @@ def png_invalid_truncated_header():
 def png_invalid_header_only():
     return pngforge.header()
 
-def png_invalid_chunk_big():
+def png_invalid_chunk_size_overflow():
+    """Overflow a signed integer for the chunk size."""
     return pngforge.header() + pngforge.chunk('BIGC', '', length=2**31)
+
+def png_invalid_chunk_size_big():
+    """Return a chunk that claims to be 1gb."""
+    return pngforge.header() + pngforge.chunk('BIGC', '', length=2**30)
 
 if __name__ == '__main__':
     for key, val in globals().items():
