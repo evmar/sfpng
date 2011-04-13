@@ -297,13 +297,12 @@ static sfpng_status update_header_derived_values(sfpng_decoder* decoder) {
   decoder->stride = ((scanline_bits + 7) / 8);
 
   /* Allocate scanline buffers, with extra byte for filter tag. */
-  decoder->scanline_buf = malloc(1 + decoder->stride);
+  int scanline_size = 1 + decoder->stride;
+  decoder->scanline_buf = malloc(scanline_size * 2);
   if (!decoder->scanline_buf)
     return SFPNG_ERROR_ALLOC_FAILED;
-  decoder->scanline_prev_buf = malloc(1 + decoder->stride);
-  if (!decoder->scanline_prev_buf)
-    return SFPNG_ERROR_ALLOC_FAILED;
-  memset(decoder->scanline_prev_buf, 0, 1 + decoder->stride);
+  decoder->scanline_prev_buf = decoder->scanline_buf + scanline_size;
+  memset(decoder->scanline_prev_buf, 0, scanline_size);
 
   return SFPNG_SUCCESS;
 }
@@ -798,9 +797,7 @@ void sfpng_decoder_free(sfpng_decoder* decoder) {
   if (decoder->chunk_buf)
     free(decoder->chunk_buf);
   if (decoder->scanline_buf)
-    free(decoder->scanline_buf);
-  if (decoder->scanline_prev_buf)
-    free(decoder->scanline_prev_buf);
+    free(min(decoder->scanline_buf, decoder->scanline_prev_buf));
   if (decoder->zlib_stream.next_in) {
     int status = inflateEnd(&decoder->zlib_stream);
     /* We don't care about a bad status at this point. */
