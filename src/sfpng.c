@@ -421,10 +421,11 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
       /* Set up for next line. */
       decoder->zlib_stream.next_out = decoder->scanline_buf;
       decoder->zlib_stream.avail_out = 1 + decoder->stride;
+
+      /* Mark that we've sucessfully processed at least some of the IDAT. */
+      decoder->chunk_state = CHUNK_STATE_IDAT;
     }
   }
-
-  decoder->chunk_state = CHUNK_STATE_IDAT;
 
   return SFPNG_SUCCESS;
 }

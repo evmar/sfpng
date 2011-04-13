@@ -24,10 +24,19 @@ def compute_crc(data):
         c = g_crc_table[(c ^ ord(b)) & 0xFF] ^ (c >> 8)
     return c ^ 0xFFFFFFFFL
 
-def chunk(chunk_type, data, crc=None, length=None):
+def chunk(chunk_type, data='', crc=None, length=None):
     if length is None:
         length = len(data)
     body = chunk_type + data
     if crc is None:
         crc = compute_crc(body)
     return struct.pack('>L', length) + body + struct.pack('>L', crc)
+
+def ihdr(width, height, depth=8, color_type=2, compression=0, filter=0,
+         interlace=0):
+    data = struct.pack('>LLBBBBB', width, height, depth, color_type,
+                       compression, filter, interlace)
+    return chunk('IHDR', data)
+
+def iend():
+    return chunk('IEND')

@@ -15,15 +15,21 @@ def png_invalid_sig_only():
 
 def png_invalid_chunk_size_overflow():
     """Overflow a signed integer for the chunk size."""
-    return pngforge.sig() + pngforge.chunk('BIGC', '', length=2**31)
+    return pngforge.sig() + pngforge.chunk('BIGC', length=2**31)
 
 def png_invalid_chunk_size_big():
     """Return a chunk that claims to be 1gb."""
-    return pngforge.sig() + pngforge.chunk('BIGC', '', length=2**30)
+    return pngforge.sig() + pngforge.chunk('BIGC', length=2**30)
 
 def png_invalid_bad_crc():
     """Return a chunk with a bad CRC."""
-    return pngforge.sig() + pngforge.chunk('ABCD', '', crc=1)
+    return pngforge.sig() + pngforge.chunk('ABCD', crc=1)
+
+def png_invalid_short_idat():
+    """Create the smallest valid image."""
+    return (pngforge.sig() + pngforge.ihdr(1, 1) +
+            pngforge.chunk('IDAT', '') +
+            pngforge.iend())
 
 if __name__ == '__main__':
     for key, val in globals().items():
