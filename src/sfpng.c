@@ -699,9 +699,18 @@ float sfpng_decoder_get_gamma(const sfpng_decoder* decoder) {
   return decoder->gamma / (float)100000;
 }
 
+static sfpng_status finish(sfpng_decoder* decoder) {
+  if (decoder->chunk_state != CHUNK_STATE_IEND)
+    return SFPNG_ERROR_BAD_ATTRIBUTE;
+  return SFPNG_SUCCESS;
+}
+
 sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
                                  const void* buf,
                                  size_t bytes) {
+  if (bytes == 0)
+    return finish(decoder);
+
   stream src = { buf, bytes };
 
   while (src.len > 0) {
