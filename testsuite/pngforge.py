@@ -2,7 +2,7 @@
 
 import struct
 
-def header():
+def sig():
     return struct.pack('8B', 137, 80, 78, 71, 13, 10, 26, 10)
 
 def make_crc_table():
