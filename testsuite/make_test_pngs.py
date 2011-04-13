@@ -31,6 +31,26 @@ def png_invalid_short_idat():
             pngforge.chunk('IDAT', '') +
             pngforge.iend())
 
+def png_invalid_short_palette():
+    """Construct a palette that isn't a multiple of 3 bytes long."""
+    palette = ''.join([pngforge.rgb(i,i,i) for i in range(2)])[0:5]
+    return (pngforge.sig() +
+            pngforge.ihdr(width=1, height=1,
+                          color_type=pngforge.COLOR_INDEXED) +
+            pngforge.chunk('PLTE', palette) +
+            pngforge.idat(pngforge.scanline(0, '\0')) +
+            pngforge.iend())
+
+def png_invalid_bad_palette_reference():
+    """Refer to a nonexistent palette entry."""
+    palette = ''.join([pngforge.rgb(i,i,i) for i in range(64)])
+    return (pngforge.sig() +
+            pngforge.ihdr(width=1, height=1,
+                          color_type=pngforge.COLOR_INDEXED) +
+            pngforge.chunk('PLTE', palette) +
+            pngforge.idat(pngforge.scanline(0, chr(65))) +
+            pngforge.iend())
+
 def png_valid_tiny():
     """Create a valid, though tiny, image."""
     return (pngforge.sig() + pngforge.ihdr(width=1, height=1) +

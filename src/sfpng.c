@@ -856,13 +856,16 @@ void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
     }
 
     if (decoder->color_type == SFPNG_COLOR_INDEXED) {
-      /* XXX verify palette indexing at palette load time */
-      if (value > decoder->palette.entries)
-        return;
-      const uint8_t* palette = decoder->palette.bytes + (3 * value);
-      r = palette[0];
-      g = palette[1];
-      b = palette[2];
+      if (value > decoder->palette.entries) {
+        /* This is an error by the spec, but we don't have an error
+           return path.  Just use 0 values to match libpng. */
+        r = g = b = 0;
+      } else {
+        const uint8_t* palette = decoder->palette.bytes + (3 * value);
+        r = palette[0];
+        g = palette[1];
+        b = palette[2];
+      }
     }
 
     if (decoder->has_trans) {
