@@ -21,6 +21,10 @@ def png_invalid_chunk_size_big():
     """Return a chunk that claims to be 1gb."""
     return pngforge.header() + pngforge.chunk('BIGC', '', length=2**30)
 
+def png_invalid_bad_crc():
+    """Return a chunk with a bad CRC."""
+    return pngforge.header() + pngforge.chunk('ABCD', '', crc=1)
+
 if __name__ == '__main__':
     for key, val in globals().items():
         if not key.startswith('png_'):
