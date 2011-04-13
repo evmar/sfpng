@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import struct
+import zlib
 
 def sig():
     return struct.pack('8B', 137, 80, 78, 71, 13, 10, 26, 10)
@@ -37,6 +38,12 @@ def ihdr(width, height, depth=8, color_type=2, compression=0, filter=0,
     data = struct.pack('>LLBBBBB', width, height, depth, color_type,
                        compression, filter, interlace)
     return chunk('IHDR', data)
+
+def scanline(filter, pixels):
+    return struct.pack('B', filter) + pixels
+
+def idat(scanlines):
+    return chunk('IDAT', zlib.compress(scanlines))
 
 def iend():
     return chunk('IEND')
