@@ -1,0 +1,122 @@
+sfpng, a straightforward PNG decoder
+====================================
+Evan Martin <martine@danga.com>
+
+Introduction
+------------
+
+libpng is a full and flexible implementation of the PNG specification.
+It has a complex API (as of this writing. png.h is 3.7k lines long)
+that exposes every detail of how PNGs work.  Perhaps due to this level
+of detail and it long history, libpng has a relatively large binary
+footprint and some security vulnerabilities in its past.
+
+Most applications that deal with PNG files just want to retrieve a dump
+of RGBA pixels.  sfpng provides this, straightforwardly.
+
+My two primary goals in making sfpng were:
+
+1. A simple embeddedable PNG decoder.
+
+** *simple* in the sense of having the smallest API surface possible
+    (e.g. no `FILE*` interface nor use of `setjmp`/`longjmp`);
+
+** *embeddable* in the sense of only providing a non-blocking API that
+   accepts bytes and emits pixels.
+
+2. A thorough test suite for evaluating PNG decoders.
+
+** verify, for all available images, that the pixels you get with sfpng
+   match those from libpng and that both reject the same invalid images;
+
+** convert known libpng security vulnerabilities into test cases, and
+   create more test inputs that exercise other possible corner cases;
+
+** make sure all of the above is valgrind clean.
+
+Hopefully even if sfpng doesn't meet your needs itself, its test suite
+will be useful for writing your own decoder.
+
+Usage
+-----
+
+Feel free to include the `src/` directory directly in your project
+(though please obey the license terms).  There is one header file of
+public API, `sfpng.h`, which is quite short and easy to read through.
+
+To use sfpng you must know a little bit about how PNG files work.
+A PNG file is a series of tagged chunks of data; some (like the one
+that includes image dimensions) are required while many others (like
+the palette, as used by a paletted image) are optional.
+
+sfpng aims to provide the minimal orthogonal interface for decoding
+a PNG.  You stream in bytes of the input, and it calls callbacks as
+data about the image becomes available.
+
+The basic structure of the code looks like this:
+
+----------------------
+/* create the decoder structure */
+sfpng_decoder* decoder = sfpng_decoder_new();
+
+/* register callbacks for interesting events */
+sfpng_decoder_set_row_func(decoder, on_scanline_decoded);
+
+/* feed bytes to the decoder */
+char buf[BUFSIZE];
+int len;
+while ((len = fill_buffer_from_somewhere(buf)) >= 0) {
+  sfpng_status status = sfpng_decoder_write(decoder, buf, len);
+  if (status != SFPNG_SUCCESS) {
+    /* handle failure here; perhaps the image was bad. */
+  }
+  if (len == 0)
+    break;
+}
+/* NOTE: be sure to call sfpng_decoder_write with a 0 length to indicate EOF,
+   and to check the status after that point!
+   The above loop does this properly. */
+
+/* clean up */
+sfpng_decoder_free(decoder);
+----------------------------
+
+The info callback and image metadata
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The image info callback as registered with
+`sfpng_decoder_set_info_func()` should look like:
+
+----------------
+void on_info(sfpng_decoder* decoder);
+----------------
+
+It is called just before the first row of pixels are decoded, which means
+it's after image metadata like width, height, and color format, as well
+as the gamma or palette info if any, are available.  See the functions
+with names starting with `sfpng_decoder_get_*` in the header.
+
+The row callback and transforming pixels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The image pixel data callback as registered with
+`sfpng_decoder_set_row_func()` should look like:
+
+----------------
+void on_row(sfpng_decoder* decoder, int row, const uint8_t* buf, int len);
+----------------
+
+As pixels are decoded from the input stream, the row callback is
+called once per row of pixels.  The buffer that comes in the callback
+is the raw pixel data as used by the PNG format; for example, for a
+4bpp grayscale image, each byte will contain two pixels.  Depending on
+your needs (perhaps you know all your input images will be 8bpp
+grayscale) this API might be sufficient.
+
+Otherwise, `sfpng_decoder_transform` is a helper that will convert any
+PNG pixel format into 32bpp RGBA data.  As input it takes the pixel
+data as passed to the row callback.  Its output parameter must point
+at a buffer that is at least four times the image width in pixels.  (Why
+doesn't sfpng do this conversion implicitly?  Because it's likely you
+have special requirements for the memory management of this pixel
+buffer.)
