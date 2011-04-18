@@ -255,9 +255,17 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
   SFPNG_WARN_UNUSED_RESULT;
 static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
                                              stream* src) {
-  if (!(decoder->chunk_state >= CHUNK_STATE_IHDR ||
-        decoder->chunk_state <= CHUNK_STATE_IDAT)) {
-    return SFPNG_ERROR_BAD_ATTRIBUTE;  /* Must be after headers. */
+  if (decoder->chunk_state != CHUNK_STATE_IDAT) {
+    /* Verify we were in the proper prior state upon entry.
+       For a paletted image, we should have seen the palette. */
+    const decode_chunk_state expected_chunk_state =
+      decoder->color_type == SFPNG_COLOR_INDEXED ?
+      CHUNK_STATE_PLTE : CHUNK_STATE_IHDR;
+
+    /* The pngsuite mysteriously contains an image that has truecolor data
+       but includes a palette too, so allow that (by using < instead of ==). */
+    if (decoder->chunk_state < expected_chunk_state)
+      return SFPNG_ERROR_BAD_ATTRIBUTE;
   }
 
   int needs_init = !decoder->zlib_stream.next_in;
