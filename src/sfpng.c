@@ -8,45 +8,7 @@
 #include <stdint.h>
 
 #include "decoder.h"
-
-#define min(a, b) ((a) < (b) ? (a) : (b))
-
-typedef struct {
-  const uint8_t* buf;
-  int len;
-} stream;
-
-static void stream_consume(stream* stream, int bytes) {
-  stream->buf += bytes;
-  stream->len -= bytes;
-}
-static uint32_t stream_read_uint32(stream* stream) {
-  uint32_t i;
-  memcpy(&i, stream->buf, 4);
-  stream_consume(stream, 4);
-  return ntohl(i);
-}
-static uint16_t stream_read_uint16(stream* stream) {
-  uint16_t i;
-  memcpy(&i, stream->buf, 2);
-  stream_consume(stream, 2);
-  return ntohs(i);
-}
-static uint8_t stream_read_byte(stream* stream) {
-  uint8_t i = stream->buf[0];
-  stream_consume(stream, 1);
-  return i;
-}
-
-static void fill_buffer(uint8_t* buf, int* have_len, int want_len,
-                        stream* src) {
-  int want_bytes = want_len - *have_len;
-  int take_bytes = min(src->len, want_bytes);
-
-  memcpy(buf + *have_len, src->buf, take_bytes);
-  *have_len += take_bytes;
-  stream_consume(src, take_bytes);
-}
+#include "stream.h"
 
 #define PNG_TAG(a,b,c,d) ((uint32_t)((a<<24)|(b<<16)|(c<<8)|d))
 
@@ -636,7 +598,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
     switch (decoder->state) {
     case STATE_SIGNATURE: {
       /* Want 8 bytes of signature in buffer. */
-      fill_buffer(decoder->in_buf, &decoder->in_len, 8, &src);
+      stream_fill_buffer(&src, decoder->in_buf, &decoder->in_len, 8);
       if (decoder->in_len < 8)
         return SFPNG_SUCCESS;
 
@@ -649,7 +611,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
     }
     case STATE_CHUNK_HEADER: {
       /* Want 8 bytes of chunk header. */
-      fill_buffer(decoder->in_buf, &decoder->in_len, 8, &src);
+      stream_fill_buffer(&src, decoder->in_buf, &decoder->in_len, 8);
       if (decoder->in_len < 8)
         return SFPNG_SUCCESS;
 
@@ -674,8 +636,8 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       /* Fall through. */
     }
     case STATE_CHUNK_DATA: {
-      fill_buffer(decoder->chunk_buf, &decoder->chunk_ofs, decoder->chunk_len,
-                  &src);
+      stream_fill_buffer(&src, decoder->chunk_buf,
+                         &decoder->chunk_ofs, decoder->chunk_len);
       if (decoder->chunk_ofs < decoder->chunk_len)
         return SFPNG_SUCCESS;
 
@@ -684,7 +646,7 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
       /* Fall through. */
     }
     case STATE_CHUNK_CRC: {
-      fill_buffer(decoder->in_buf, &decoder->in_len, 4, &src);
+      stream_fill_buffer(&src, decoder->in_buf, &decoder->in_len, 4);
       if (decoder->in_len < 4)
         return SFPNG_SUCCESS;
 

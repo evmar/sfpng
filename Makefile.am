@@ -2,7 +2,7 @@ AM_CFLAGS = -Wall -Wno-unused
 
 noinst_LIBRARIES = libsfpng.a
 
-libsfpng_a_SOURCES = src/crc.c src/crc.h src/sfpng.c src/sfpng.h src/transform.c
+libsfpng_a_SOURCES = src/crc.c src/crc.h src/sfpng.c src/sfpng.h src/stream.h src/transform.c
 
 noinst_PROGRAMS = png2pnm
 
