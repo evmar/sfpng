@@ -48,7 +48,7 @@ void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
     }
 
     if (decoder->color_type == SFPNG_COLOR_INDEXED) {
-      if (value > decoder->palette.entries) {
+      if (value >= decoder->palette.entries) {
         /* This is an error by the spec, but we don't have an error
            return path.  Just use 0 values to match libpng. */
         r = g = b = 0;
