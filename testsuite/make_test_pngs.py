@@ -59,6 +59,11 @@ def png_invalid_bad_palette_reference():
             pngforge.idat(pngforge.scanline(0, chr(64))) +
             pngforge.iend())
 
+def png_invalid_missing_iend():
+    """A valid image, just missing the IEND."""
+    return (pngforge.sig() + pngforge.ihdr(width=1, height=1) +
+            pngforge.idat(pngforge.scanline(0, '\1\2\3')))
+
 def png_valid_tiny():
     """Create a valid, though tiny, image."""
     return (pngforge.sig() + pngforge.ihdr(width=1, height=1) +

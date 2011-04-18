@@ -24,7 +24,14 @@ for f in $inputs; do
 
     echo -n "$f: "
     $valgrind ./libpng-dumper $f 2>&1 > $libpng_output
+    libpng_exit=$?
     $valgrind ./sfpng-dumper $f 2>&1 > $sfpng_output
+    sfpng_exit=$?
+
+    if [ $libpng_exit == 1 -a $sfpng_exit == 1 ]; then
+        echo 'PASS [both invalid]'
+        continue
+    fi
 
     if diff -q $libpng_output $sfpng_output; then
         echo 'PASS'
