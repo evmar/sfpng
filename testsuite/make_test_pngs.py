@@ -56,7 +56,7 @@ def png_invalid_bad_palette_reference():
             pngforge.ihdr(width=1, height=1,
                           color_type=pngforge.COLOR_INDEXED) +
             pngforge.chunk('PLTE', palette) +
-            pngforge.idat(pngforge.scanline(0, chr(65))) +
+            pngforge.idat(pngforge.scanline(0, chr(64))) +
             pngforge.iend())
 
 def png_valid_tiny():
