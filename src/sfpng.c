@@ -281,6 +281,15 @@ static sfpng_status process_image_data_chunk(sfpng_decoder* decoder,
   }
 
   while (decoder->zlib_stream.avail_in) {
+    if (decoder->scanline_row == decoder->height) {
+      /* We're done with the image, but we still have more data.
+         This may be an error, but libpng appears to just ignore it.
+         XXX should we call this an error?
+      */
+      decoder->zlib_stream.avail_in = 0;  /* Stop reading. */
+      return SFPNG_SUCCESS;
+    }
+
     int status = inflate(&decoder->zlib_stream, Z_SYNC_FLUSH);
     if (status != Z_OK && status != Z_STREAM_END)
       return SFPNG_ERROR_ZLIB_ERROR;

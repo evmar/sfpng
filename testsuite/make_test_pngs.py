@@ -31,6 +31,12 @@ def png_invalid_short_idat():
             pngforge.chunk('IDAT', '') +
             pngforge.iend())
 
+def png_invalid_long_idat():
+    """Create a image with an overlong IDAT."""
+    return (pngforge.sig() + pngforge.ihdr(1, 1) +
+            pngforge.idat(pngforge.scanline(0, '\0' * 20)) +
+            pngforge.iend())
+
 def png_invalid_bad_palette_reference():
     """Leave out the palette on a paletted image."""
     return (pngforge.sig() +
