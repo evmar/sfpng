@@ -20,7 +20,7 @@ static void row_func(sfpng_decoder* decoder,
     g_transform_buf = malloc(sfpng_decoder_get_width(decoder) * 4);
   }
 
-  sfpng_decoder_transform(decoder, buf, g_transform_buf);
+  sfpng_decoder_transform(decoder, row, buf, g_transform_buf);
 
   int x;
   for (x = 0; x < sfpng_decoder_get_width(decoder) * 4; x += 4) {

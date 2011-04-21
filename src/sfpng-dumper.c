@@ -20,7 +20,6 @@ typedef struct _comment {
 typedef struct {
   int transform;
   uint8_t* transform_buf;
-  int transform_len;
 
   comment* comments;
 } decode_context;
@@ -65,25 +64,13 @@ static void row_func(sfpng_decoder* decoder,
                      const uint8_t* buf,
                      int len) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
-  if (row == 0) {
-    if (context->transform) {
-      printf("decoded bytes:\n");
-    } else {
+  if (!context->transform) {
+    if (row == 0)
       printf("raw data bytes:\n");
-    }
+    dump_row(row, buf, len);
+  } else {
+    sfpng_decoder_transform(decoder, row, buf, context->transform_buf);
   }
-
-  if (context->transform) {
-    sfpng_decoder_transform(decoder, buf, context->transform_buf);
-    buf = context->transform_buf;
-    len = context->transform_len;
-  }
-
-  printf("%3d:", row);
-  int i;
-  for (i = 0; i < len; ++i)
-    printf("%02x", buf[i]);
-  printf("\n");
 }
 
 static void info_func(sfpng_decoder* decoder) {
@@ -92,8 +79,9 @@ static void info_func(sfpng_decoder* decoder) {
   if (context->transform) {
     if (sfpng_decoder_get_interlaced(decoder))
       return;
-    context->transform_len = sfpng_decoder_get_width(decoder) * 4;
-    context->transform_buf = malloc(context->transform_len);
+    int transform_len =
+      sfpng_decoder_get_width(decoder) * sfpng_decoder_get_height(decoder) * 4;
+    context->transform_buf = malloc(transform_len);
     int depth = sfpng_decoder_get_depth(decoder);
     sfpng_decoder_set_row_func(decoder, row_func);
   } else {
@@ -180,6 +168,14 @@ static int dump_file(const char* filename, int transform) {
 
   comment* c;
   if (transform) {
+    if (context.transform_buf) {
+      printf("decoded bytes:\n");
+      int row;
+      int stride = sfpng_decoder_get_width(decoder) * 4;
+      for (row = 0; row < sfpng_decoder_get_height(decoder); ++row)
+        dump_row(row, &context.transform_buf[row * stride], stride);
+    }
+
     for (c = context.comments; c; c = c->next)
       dump_comment(c->key, c->val, c->val_len);
   }

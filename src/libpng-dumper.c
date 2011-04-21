@@ -1,4 +1,5 @@
 #include <libpng/png.h>
+#include <setjmp.h>
 
 #include "dumper.h"
 
@@ -51,13 +52,9 @@ static void dump_png_rows(png_structp png, png_infop info) {
   int height = png_get_image_height(png, info);
   png_byte** rows = png_get_rows(png, info);
   int stride = png_get_rowbytes(png, info);
-  int x, y;
-  for (y = 0; y < height; ++y) {
-    printf("%3d:", y);
-    for (x = 0; x < stride; ++x)
-      printf("%02x", (int)rows[y][x]);
-    printf("\n");
-  }
+  int y;
+  for (y = 0; y < height; ++y)
+    dump_row(y, rows[y], stride);
 }
 
 static int dump_file(const char* filename, int transform) {

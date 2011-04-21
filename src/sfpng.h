@@ -170,5 +170,6 @@ sfpng_status sfpng_decoder_write(sfpng_decoder* decoder,
 /** Transform blah blah.
 
 XXX finish me. */
-void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* row,
+void sfpng_decoder_transform(sfpng_decoder* decoder,
+                             int row, const uint8_t* buf,
                              uint8_t* out);

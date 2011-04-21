@@ -2,8 +2,12 @@
 
 #include "decoder.h"
 
-void sfpng_decoder_transform(sfpng_decoder* decoder, const uint8_t* in,
+void sfpng_decoder_transform(sfpng_decoder* decoder,
+                             int row,
+                             const uint8_t* in,
                              uint8_t* out) {
+  out += row * (4 * decoder->width);
+
   const int depth = decoder->bit_depth;
   int in_len_pixels = decoder->width;
   int bit = 8 - depth;
