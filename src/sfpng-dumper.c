@@ -59,18 +59,22 @@ static void dump_attrs(sfpng_decoder* decoder) {
   }
 }
 
-static void row_func(sfpng_decoder* decoder,
-                     int row,
-                     const uint8_t* buf,
-                     int len) {
+static void raw_row_func(sfpng_decoder* decoder,
+                         int row,
+                         const uint8_t* buf,
+                         int len) {
   decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
-  if (!context->transform) {
-    if (row == 0)
-      printf("raw data bytes:\n");
-    dump_row(row, buf, len);
-  } else {
-    sfpng_decoder_transform(decoder, row, buf, context->transform_buf);
-  }
+  if (row == 0)
+    printf("raw data bytes:\n");
+  dump_row(row, buf, len);
+}
+
+static void transform_row_func(sfpng_decoder* decoder,
+                               int row,
+                               const uint8_t* buf,
+                               int len) {
+  decode_context* context = (decode_context*)sfpng_decoder_get_context(decoder);
+  sfpng_decoder_transform(decoder, row, buf, context->transform_buf);
 }
 
 static void info_func(sfpng_decoder* decoder) {
@@ -83,12 +87,12 @@ static void info_func(sfpng_decoder* decoder) {
       sfpng_decoder_get_width(decoder) * sfpng_decoder_get_height(decoder) * 4;
     context->transform_buf = malloc(transform_len);
     int depth = sfpng_decoder_get_depth(decoder);
-    sfpng_decoder_set_row_func(decoder, row_func);
+    sfpng_decoder_set_row_func(decoder, transform_row_func);
   } else {
     dump_attrs(decoder);
     if (sfpng_decoder_get_interlaced(decoder))
       return;
-    sfpng_decoder_set_row_func(decoder, row_func);
+    sfpng_decoder_set_row_func(decoder, raw_row_func);
   }
 }
 
